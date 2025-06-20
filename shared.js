@@ -87,6 +87,11 @@ function initializeSocket() {
         window.dispatchEvent(new CustomEvent('clearJeopardyDisplayReceived'));
     });
     
+    socket.on('teamScoreUpdated', (data) => {
+        console.log('Socket received teamScoreUpdated event:', data);
+        window.dispatchEvent(new CustomEvent('teamScoreUpdated', { detail: data }));
+    });
+    
     return socket;
 }
 
@@ -256,6 +261,15 @@ function clearHostJeopardyDisplay() {
     socket.emit('clearHostJeopardyDisplay');
 }
 
+function updateTeamScore(teamNumber, newScore) {
+    if (!socket || !socket.connected) {
+        console.error('Not connected to server');
+        return;
+    }
+    
+    socket.emit('updateTeamScore', { teamNumber, newScore });
+}
+
 // Get team members
 function getTeamMembers(teamNumber) {
     return gameState.players.filter(p => p.team === teamNumber);
@@ -353,6 +367,7 @@ if (typeof module !== 'undefined' && module.exports) {
         resetTeamScores,
         closeJeopardyModal,
         clearHostJeopardyDisplay,
+        updateTeamScore,
         getTeamMembers,
         getCurrentQuestionBuzzes,
         getFastestBuzz,

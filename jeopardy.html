@@ -593,22 +593,7 @@
             <button class="timer-btn" onclick="startModalTimer()">Start 5-Second Timer</button>
             <div class="progress-bar" id="modalProgressBar"></div>
         </div>
-        <div class="modal-scoring">
-            <div class="scoring-label">Award Points:</div>
-            <div class="scoring-section">
-                <button class="score-btn add" onclick="addPoints(1)">Team 1 +$<span id="currentPoints">0</span></button>
-                <button class="score-btn add" onclick="addPoints(2)">Team 2 +$<span id="currentPoints2">0</span></button>
-                <button class="score-btn add" onclick="addPoints(3)">Team 3 +$<span id="currentPoints3">0</span></button>
-                <button class="score-btn add" onclick="addPoints(4)">Team 4 +$<span id="currentPoints4">0</span></button>
-            </div>
-            <div class="scoring-label">Subtract Half Points:</div>
-            <div class="scoring-section">
-                <button class="score-btn subtract" onclick="subtractHalfPoints(1)">Team 1 -$<span id="halfPoints">0</span></button>
-                <button class="score-btn subtract" onclick="subtractHalfPoints(2)">Team 2 -$<span id="halfPoints2">0</span></button>
-                <button class="score-btn subtract" onclick="subtractHalfPoints(3)">Team 3 -$<span id="halfPoints3">0</span></button>
-                <button class="score-btn subtract" onclick="subtractHalfPoints(4)">Team 4 -$<span id="halfPoints4">0</span></button>
-            </div>
-        </div>
+
     </div>
 
     <div class="score-tracker">
@@ -1025,31 +1010,10 @@
 
         // Scoring Functions
         function updateScoringButtons() {
-            // Update add points buttons
-            document.getElementById('currentPoints').textContent = currentQuestionValue;
-            document.getElementById('currentPoints2').textContent = currentQuestionValue;
-            document.getElementById('currentPoints3').textContent = currentQuestionValue;
-            document.getElementById('currentPoints4').textContent = currentQuestionValue;
-            
-            // Update subtract half points buttons
-            const halfValue = Math.floor(currentQuestionValue / 2);
-            document.getElementById('halfPoints').textContent = halfValue;
-            document.getElementById('halfPoints2').textContent = halfValue;
-            document.getElementById('halfPoints3').textContent = halfValue;
-            document.getElementById('halfPoints4').textContent = halfValue;
+            // Scoring buttons have been removed - this function is kept for compatibility
         }
 
-        function addPoints(teamNumber) {
-            teamScores[teamNumber - 1] += currentQuestionValue;
-            updateScoreDisplay();
-            closeModal();
-        }
 
-        function subtractHalfPoints(teamNumber) {
-            const halfValue = Math.floor(currentQuestionValue / 2);
-            teamScores[teamNumber - 1] -= halfValue;
-            updateScoreDisplay();
-        }
 
         function closeModal() {
             modal.style.display = "none";
@@ -1132,12 +1096,19 @@
             function saveScore() {
                 console.log('Saving score:', input.value); // Debug log
                 const newScore = parseInt(input.value) || 0;
-                teamScores[teamNumber - 1] = newScore;
+                
+                // Update server state
+                if (typeof updateTeamScore === 'function') {
+                    updateTeamScore(teamNumber, newScore);
+                } else {
+                    console.warn('updateTeamScore function not available, updating locally only');
+                    teamScores[teamNumber - 1] = newScore;
+                    updateScoreDisplay();
+                }
                 
                 // Restore original display
                 scoreElement.innerHTML = '';
                 scoreElement.classList.remove('editing');
-                updateScoreDisplay();
             }
             
             // Save on Enter key

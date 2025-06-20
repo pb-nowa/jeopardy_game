@@ -453,6 +453,23 @@ io.on('connection', (socket) => {
         console.log('Team scores reset to 0');
     });
 
+    socket.on('updateTeamScore', (data) => {
+        const { teamNumber, newScore } = data;
+        
+        // Validate team number
+        if (teamNumber >= 1 && teamNumber <= 4) {
+            gameState.teamScores[teamNumber] = newScore;
+            gameState.lastUpdate = Date.now();
+            
+            broadcastGameState();
+            io.emit('teamScoreUpdated', { teamNumber, newScore });
+            
+            console.log(`Team ${teamNumber} score updated to ${newScore}`);
+        } else {
+            console.error('Invalid team number:', teamNumber);
+        }
+    });
+
     socket.on('closeJeopardyModal', () => {
         // Send event to jeopardy board to close modal
         io.emit('closeModal');
