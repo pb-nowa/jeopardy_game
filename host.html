@@ -307,6 +307,11 @@
             color: white;
         }
 
+        .buzz-btn.dismiss {
+            background: #666666;
+            color: white;
+        }
+
         .buzz-btn:hover {
             opacity: 0.8;
             transform: scale(1.05);
@@ -738,6 +743,9 @@
                                 <button class="buzz-btn wrong" onclick="markWrong('${buzz.id}')">
                                     ❌ Wrong
                                 </button>
+                                <button class="buzz-btn dismiss" onclick="markDismiss('${buzz.id}')">
+                                    🚫 Dismiss
+                                </button>
                             ` : `
                                 <div style="color: #ffd700; font-weight: bold;">🏆 Winner</div>
                             `}
@@ -767,6 +775,10 @@
 
         function markWrong(buzzId) {
             markBuzzWrong(buzzId);
+        }
+
+        function markDismiss(buzzId) {
+            dismissBuzz(buzzId);
         }
 
         function resetGameData() {
@@ -1003,6 +1015,12 @@
                     showScoringNotification(data.playerName, data.team, data.pointsDeducted, false);
                     updateGameState(); // Refresh display
                 });
+
+                window.socket.on('buzzDismissed', (data) => {
+                    console.log('Buzz dismissed:', data);
+                    showDismissNotification(data.playerName, data.team);
+                    updateGameState(); // Refresh display
+                });
             }
         });
 
@@ -1044,6 +1062,44 @@
                     }
                 }, 300);
             }, 4000);
+        }
+
+        // Show dismiss notification
+        function showDismissNotification(playerName, team) {
+            const notification = document.createElement('div');
+            const teamColor = getTeamColor(team);
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: #666666;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                font-weight: bold;
+                z-index: 1000;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease-out;
+                border-left: 5px solid ${teamColor};
+            `;
+            
+            notification.innerHTML = `
+                <div>${playerName} (Team ${team})</div>
+                <div style="font-size: 1.2em;">Buzz dismissed</div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
         }
 
         // Initialize when page loads

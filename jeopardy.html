@@ -1073,8 +1073,14 @@
         }
 
         function resetAllScores() {
-            teamScores = [0, 0, 0, 0];
-            updateScoreDisplay();
+            // Reset scores on server
+            if (typeof resetTeamScores === 'function') {
+                resetTeamScores();
+            } else {
+                console.warn('resetTeamScores function not available, resetting locally only');
+                teamScores = [0, 0, 0, 0];
+                updateScoreDisplay();
+            }
         }
 
         function clearCurrentBoard() {
@@ -1362,6 +1368,13 @@
                 socket.on('buzzMarkedWrong', function(data) {
                     console.log('Buzz marked wrong:', data);
                     // Scores will be updated via gameStateUpdate
+                });
+                
+                socket.on('teamScoresReset', function() {
+                    console.log('Team scores reset by server');
+                    // Reset local scores
+                    teamScores = [0, 0, 0, 0];
+                    updateScoreDisplay();
                 });
                 
                 socket.on('newBuzz', function(buzzData) {

@@ -187,6 +187,16 @@ function markBuzzWrong(buzzId) {
     return true;
 }
 
+function dismissBuzz(buzzId) {
+    if (!socket || !socket.connected) {
+        console.error('Not connected to server');
+        return false;
+    }
+    
+    socket.emit('dismissBuzz', buzzId);
+    return true;
+}
+
 function clearBuzzes() {
     if (!socket || !socket.connected) {
         console.error('Not connected to server');
@@ -212,6 +222,15 @@ function resetGame() {
     }
     
     socket.emit('resetGame');
+}
+
+function resetTeamScores() {
+    if (!socket || !socket.connected) {
+        console.error('Not connected to server');
+        return;
+    }
+    
+    socket.emit('resetTeamScores');
 }
 
 // Get team members
@@ -304,9 +323,11 @@ if (typeof module !== 'undefined' && module.exports) {
         setBuzzingEnabled,
         setBuzzWinner,
         markBuzzWrong,
+        dismissBuzz,
         clearBuzzes,
         newQuestion,
         resetGame,
+        resetTeamScores,
         getTeamMembers,
         getCurrentQuestionBuzzes,
         getFastestBuzz,

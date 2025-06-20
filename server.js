@@ -413,6 +413,46 @@ io.on('connection', (socket) => {
         console.log(`Buzz marked wrong: ${playerName} (Team ${team}) -${pointsDeducted} points`);
     });
 
+    socket.on('dismissBuzz', (buzzId) => {
+        const buzz = gameState.buzzes.find(b => b.id === buzzId);
+        let playerName = '';
+        let team = null;
+        
+        if (buzz) {
+            playerName = buzz.playerName;
+            team = buzz.team;
+        }
+        
+        // Remove this buzz without affecting score, keep buzzing enabled
+        gameState.buzzes = gameState.buzzes.filter(b => b.id !== buzzId);
+        gameState.lastUpdate = Date.now();
+        
+        broadcastGameState();
+        io.emit('buzzDismissed', { 
+            buzzId, 
+            playerName,
+            team
+        });
+        
+        console.log(`Buzz dismissed: ${playerName} (Team ${team}) - no score change`);
+    });
+
+    socket.on('resetTeamScores', () => {
+        // Reset all team scores to 0
+        gameState.teamScores = {
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 0
+        };
+        gameState.lastUpdate = Date.now();
+        
+        broadcastGameState();
+        io.emit('teamScoresReset');
+        
+        console.log('Team scores reset to 0');
+    });
+
     socket.on('newQuestion', () => {
         // Reset for new question
         gameState.hostControls.buzzEnabled = false;
