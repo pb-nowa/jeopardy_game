@@ -537,7 +537,7 @@
                 <button onclick="showRound(5); closeHamburger()">JSON Editor</button>
                 <button onclick="clearCurrentBoard(); closeHamburger()" style="border-top: 1px solid #004080; margin-top: 5px; padding-top: 15px;">Clear Current Board</button>
                 <button onclick="resetAllScores(); closeHamburger()" style="color: #ff6666;">Reset All Scores</button>
-            </div>
+    </div>
     </div>
     </h1>
     
@@ -565,8 +565,8 @@
                 <button class="timer-btn" id="finalTimerBtn" onclick="toggleFinalTimer()">Start 30-Second Timer</button>
                 <button class="timer-btn" id="finalStopBtn" onclick="stopFinalTimer()" style="background-color: #cc0000; display: none;">Stop Timer</button>
             <div class="progress-bar" id="finalProgressBar"></div>
-            </div>
         </div>
+    </div>
     </div>
 
     <div id="round5" class="round">
@@ -592,7 +592,7 @@
         <div class="modal-timer-section">
             <button class="timer-btn" onclick="startModalTimer()">Start 5-Second Timer</button>
             <div class="progress-bar" id="modalProgressBar"></div>
-        </div>
+    </div>
 
     </div>
 
@@ -623,7 +623,7 @@
                 questions: {
                     "Science": [
                         {"hint": "This element has the chemical symbol 'H'", "answer": "What is Hydrogen?"},
-                        {"hint": "This planet is closest to the Sun", "answer": "What is Mercury?"},
+                        {"hint": "This planet is closest to the Sun", "answer": "What is Mercury?", "doubleJeopardy": true},
                         {"hint": "This force keeps us on the ground", "answer": "What is gravity?"},
                         {"hint": "This gas makes up about 78% of Earth's atmosphere", "answer": "What is nitrogen?"},
                         {"hint": "This is the hardest natural substance on Earth", "answer": "What is diamond?"}
@@ -664,7 +664,7 @@
                         {"hint": "This company created the iPhone", "answer": "What is Apple?"},
                         {"hint": "This social media platform has a bird logo", "answer": "What is Twitter?"},
                         {"hint": "This search engine company was founded by Larry Page and Sergey Brin", "answer": "What is Google?"},
-                        {"hint": "This programming language was created by Guido van Rossum", "answer": "What is Python?"},
+                        {"hint": "This programming language was created by Guido van Rossum", "answer": "What is Python?", "doubleJeopardy": true},
                         {"hint": "This virtual reality headset was created by Facebook", "answer": "What is Oculus?"}
                     ],
                     "Literature": [
@@ -833,6 +833,10 @@
                     if (questionData) {
                         q.dataset.hint = questionData.hint;
                         q.dataset.answer = questionData.answer;
+                        // Add doubleJeopardy property if it exists
+                        if (questionData.doubleJeopardy) {
+                            q.dataset.doubleJeopardy = questionData.doubleJeopardy.toString();
+                        }
                     } else {
                         q.dataset.hint = "No question data";
                         q.dataset.answer = "No answer data";
@@ -847,7 +851,16 @@
         function showModal(elem) {
             currentContent = elem.dataset;
             showingAnswer = false;
-            modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
+            showingDoubleJeopardy = false;
+            console.log('currentContent', currentContent);
+            // Check if this is a Double Jeopardy question
+            if (currentContent.doubleJeopardy === 'true') {
+                showingDoubleJeopardy = true;
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button><div style="font-size: clamp(2rem, 8vw, 4rem); color: gold; font-weight: bold; text-align: center; padding: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; word-wrap: break-word; max-width: 100%; box-sizing: border-box;">DOUBLE JEOPARDY</div>';
+            } else {
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
+            }
+            
             modal.style.display = "flex";
             elem.classList.add("used");
             
@@ -875,7 +888,11 @@
                 return;
             }
             
-            if (!showingAnswer) {
+            if (showingDoubleJeopardy) {
+                // Transition from "DOUBLE JEOPARDY" to showing the hint
+                showingDoubleJeopardy = false;
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
+            } else if (!showingAnswer) {
                 modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
                 showingAnswer = true;
             } else {
@@ -1182,9 +1199,9 @@
                 gameData = newData;
                 
                 // Rebuild all boards
-                createBoard(1, 100);
-                createBoard(2, 200);
-                createBoard(3, 300);
+        createBoard(1, 100);
+        createBoard(2, 200);
+        createBoard(3, 300);
                 
                 // Reset final jeopardy to initial state
                 const finalText = document.getElementById("finalText");
