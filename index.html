@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Buzzer - Join Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(0, 31, 77, 0.9);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .logo {
+            font-size: 3em;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            font-size: 1.4em;
+            margin-bottom: 40px;
+            color: #b8d4ff;
+        }
+
+        .form-group {
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: bold;
+            color: #ffd700;
+            font-size: 1.1em;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .team-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .team-btn {
+            padding: 25px;
+            border: 3px solid transparent;
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .team-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .team-btn.selected {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.2);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .team-btn.team1 { background: linear-gradient(45deg, #ff6b6b, #ff8e8e); }
+        .team-btn.team2 { background: linear-gradient(45deg, #4ecdc4, #6ee2dd); }
+        .team-btn.team3 { background: linear-gradient(45deg, #ffe66d, #fff89e); color: #333; }
+        .team-btn.team4 { background: linear-gradient(45deg, #a8e6cf, #c8f7c5); color: #333; }
+
+        .join-btn {
+            width: 100%;
+            padding: 22px;
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            color: #333;
+            border: none;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .join-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+
+        .join-btn:disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .host-link {
+            margin-top: 30px;
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .host-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .host-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #ffd700;
+        }
+
+        .error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .logo {
+                font-size: 2em;
+            }
+            
+            .team-selector {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎯 JEOPARDY</div>
+        <div class="subtitle">Buzzer System</div>
+        
+        <form id="joinForm">
+            <div class="form-group">
+                <label for="playerName">Your Name:</label>
+                <input type="text" id="playerName" placeholder="Enter your name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Select Your Team:</label>
+                <div class="team-selector">
+                    <div class="team-btn team1" data-team="1">
+                        <div>Team 1</div>
+                        <div id="team1Count">0 players</div>
+                    </div>
+                    <div class="team-btn team2" data-team="2">
+                        <div>Team 2</div>
+                        <div id="team2Count">0 players</div>
+                    </div>
+                    <div class="team-btn team3" data-team="3">
+                        <div>Team 3</div>
+                        <div id="team3Count">0 players</div>
+                    </div>
+                    <div class="team-btn team4" data-team="4">
+                        <div>Team 4</div>
+                        <div id="team4Count">0 players</div>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="join-btn" id="joinBtn" disabled>Join Game</button>
+            <div class="error" id="errorMsg"></div>
+        </form>
+        
+        <div class="host-link">
+            <a href="host.html" class="host-btn">🎮 Host Controls</a>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        let selectedTeam = null;
+
+        // Team selection
+        document.querySelectorAll('.team-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove previous selection
+                document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('selected'));
+                
+                // Select new team
+                btn.classList.add('selected');
+                selectedTeam = btn.dataset.team;
+                
+                // Enable join button if name is entered
+                updateJoinButton();
+            });
+        });
+
+        // Name input
+        document.getElementById('playerName').addEventListener('input', updateJoinButton);
+
+        function updateJoinButton() {
+            const name = document.getElementById('playerName').value.trim();
+            const joinBtn = document.getElementById('joinBtn');
+            
+            if (name && selectedTeam && isConnected()) {
+                joinBtn.disabled = false;
+            } else {
+                joinBtn.disabled = true;
+            }
+        }
+
+        // Form submission
+        document.getElementById('joinForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('playerName').value.trim();
+            const joinBtn = document.getElementById('joinBtn');
+            
+            if (!name || !selectedTeam) {
+                showError('Please enter your name and select a team');
+                return;
+            }
+
+            if (!isConnected()) {
+                showError('Not connected to server. Please refresh the page.');
+                return;
+            }
+
+            // Disable button during registration
+            joinBtn.disabled = true;
+            joinBtn.textContent = 'Joining game...';
+
+            try {
+                // Register player with server
+                const player = await registerPlayer({
+                    name: name,
+                    team: parseInt(selectedTeam)
+                });
+
+                // Store player info in session
+                sessionStorage.setItem('currentPlayer', JSON.stringify(player));
+
+                // Redirect to player page
+                window.location.href = 'player.html';
+            } catch (error) {
+                showError(error.message || 'Failed to join game');
+                joinBtn.disabled = false;
+                joinBtn.textContent = 'Join Game';
+            }
+        });
+
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
+            
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 3000);
+        }
+
+        function generateId() {
+            return 'player_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // Update team counts
+        function updateTeamCounts() {
+            const gameState = getGameState();
+            
+            for (let i = 1; i <= 4; i++) {
+                const count = gameState.players.filter(p => p.team === i).length;
+                const plural = count === 1 ? 'player' : 'players';
+                document.getElementById(`team${i}Count`).textContent = `${count} ${plural}`;
+            }
+        }
+
+        // Initialize and listen for updates
+        updateTeamCounts();
+        
+        // Listen for game state changes
+        window.addEventListener('gameStateChanged', updateTeamCounts);
+        window.addEventListener('socketConnected', updateJoinButton);
+        window.addEventListener('socketDisconnected', updateJoinButton);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Jeopardy Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #061e44;
+            color: white;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            background-color: #001f4d;
+            padding: 20px;
+            margin: 0;
+            position: relative;
+        }
+
+        /* Hamburger Menu Styles */
+        .hamburger-menu {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+        }
+
+        .hamburger-btn {
+            background: #0055aa;
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 40px;
+            height: 40px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .hamburger-btn:hover {
+            background: #0066cc;
+        }
+
+        .hamburger-btn span {
+            display: block;
+            height: 4px;
+            width: 100%;
+            background: white;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+
+        .hamburger-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+
+        .hamburger-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .hamburger-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(7px, -6px);
+        }
+
+        .hamburger-dropdown {
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: #001f4d;
+            border: 2px solid #004080;
+            border-radius: 5px;
+            min-width: 180px;
+            display: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .hamburger-dropdown.show {
+            display: block;
+        }
+
+        .hamburger-dropdown button {
+            display: block;
+            width: 100%;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            color: white;
+            text-align: left;
+            cursor: pointer;
+            font-size: 16px;
+            border-bottom: 1px solid #004080;
+        }
+
+        .hamburger-dropdown button:last-child {
+            border-bottom: none;
+        }
+
+        .hamburger-dropdown button:hover {
+            background: #0055aa;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-gap: 5px;
+            margin: 20px;
+        }
+
+        .category {
+            background: #003366;
+            padding: 20px;
+            font-weight: bold;
+            border: 2px solid #004080;
+            font-size: 36px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            line-height: 1.2;
+            overflow: hidden;
+        }
+
+        .question {
+            background: #0077cc;
+            padding: 40px;
+            font-size: 24px;
+            cursor: pointer;
+            border: 2px solid #004080;
+        }
+
+        .question.used {
+            background: #333;
+            pointer-events: none;
+        }
+
+        .round {
+            display: none;
+        }
+
+        .round.active {
+            display: block;
+        }
+
+        #finalJeopardy {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 70vh;
+            flex-direction: column;
+        }
+
+        #finalBox {
+            background: #001f4d;
+            color: gold;
+            padding: 40px;
+            border: 5px solid gold;
+            border-radius: 15px;
+            max-width: 800px;
+            font-size: 48px;
+            font-weight: bold;
+            box-shadow: 0 0 20px black;
+            cursor: pointer;
+        }
+
+        #modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+        }
+
+        #modalContent {
+            background: #001f4d;
+            color: gold;
+            padding: 60px;
+            border: 5px solid gold;
+            border-radius: 15px;
+            max-width: 1200px;
+            width: 85%;
+            font-size: 84px;
+            font-weight: bold;
+            box-shadow: 0 0 20px #000;
+            cursor: pointer;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: gold;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: white;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+        }
+
+        .modal-timer-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .timer-btn {
+            padding: 12px 25px;
+            font-size: 18px;
+            background-color: gold;
+            color: #001f4d;
+            font-weight: bold;
+            border: 3px solid #004080;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 0 10px #000;
+        }
+
+        .progress-bar {
+            display: none;
+            justify-content: center;
+            flex-direction: row-reverse;
+        }
+
+        .progress-bar.active {
+            display: flex;
+        }
+
+        .bar-piece {
+            width: 30px;
+            height: 30px;
+            margin: 0 5px;
+            background-color: gold;
+            transition: background-color 0.3s;
+        }
+
+        .bar-piece.off {
+            background-color: #333;
+        }
+
+        .bar-flash {
+            animation: flashRed 0.5s;
+        }
+
+        @keyframes flashRed {
+            0% {
+                background-color: red;
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .json-editor {
+            background: #001f4d;
+            border: 2px solid #004080;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px;
+            text-align: left;
+        }
+
+        .json-editor h3 {
+            text-align: center;
+            color: gold;
+            margin-bottom: 15px;
+        }
+
+        .json-editor textarea {
+            width: 100%;
+            height: 400px;
+            background: #003366;
+            color: white;
+            border: 1px solid #004080;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+        }
+
+        .json-editor button {
+            margin: 5px;
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #0055aa;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .json-editor button.save {
+            background-color: #00aa00;
+        }
+
+        .json-editor button.load {
+            background-color: #aa6600;
+        }
+
+        .error-message {
+            color: #ff6666;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .success-message {
+            color: #66ff66;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .final-timer-section {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Buzz notification popup */
+        .buzz-notification {
+            position: fixed;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ffd700, #ffed4a);
+            color: #001f4d;
+            padding: 20px 40px;
+            border: 3px solid #001f4d;
+            border-radius: 15px;
+            font-size: 48px;
+            font-weight: bold;
+            z-index: 1001;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            text-align: center;
+            animation: buzzSlideIn 0.5s ease-out;
+            min-width: 400px;
+        }
+
+        .buzz-notification.hide {
+            animation: buzzSlideOut 0.3s ease-in forwards;
+        }
+
+        @keyframes buzzSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        @keyframes buzzSlideOut {
+            from {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-50px);
+            }
+        }
+
+        .buzz-player-name {
+            font-size: 56px;
+            margin-bottom: 10px;
+        }
+
+        .buzz-team-name {
+            font-size: 32px;
+            opacity: 0.8;
+        }
+
+        /* Score Tracker Styles */
+        .score-tracker {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #001f4d;
+            border-top: 3px solid #004080;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-around;
+            z-index: 500;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+        }
+
+        .team-score {
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .team-name {
+            font-size: 18px;
+            margin-bottom: 5px;
+            color: gold;
+        }
+
+        .team-points {
+            font-size: 24px;
+            color: white;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .team-points:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .team-points.negative {
+            color: #ff6666;
+        }
+
+        .team-points.editing {
+            background: #003366;
+            border: 2px solid gold;
+        }
+
+        .score-input {
+            background: #003366;
+            border: 2px solid gold;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            width: 120px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .score-input:focus {
+            outline: none;
+            border-color: #ffff00;
+        }
+
+        /* Modal Scoring Buttons */
+        .modal-scoring {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .scoring-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .score-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            min-width: 100px;
+        }
+
+        .score-btn.add {
+            background: #00aa00;
+            color: white;
+        }
+
+        .score-btn.subtract {
+            background: #cc0000;
+            color: white;
+        }
+
+        .score-btn:hover {
+            opacity: 0.8;
+        }
+
+        .scoring-label {
+            color: gold;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>
+        Kelsey's Birthday Jeopardy!
+        <div class="hamburger-menu">
+            <button class="hamburger-btn" onclick="toggleHamburger()">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="hamburger-dropdown" id="hamburgerDropdown">
+                <button onclick="showRound(1); closeHamburger()">Round 1</button>
+                <button onclick="showRound(2); closeHamburger()">Round 2</button>
+                <button onclick="showRound(3); closeHamburger()">Round 3</button>
+                <button onclick="showRound(4); closeHamburger()">Final Jeopardy</button>
+                <button onclick="showRound(5); closeHamburger()">JSON Editor</button>
+                <button onclick="clearCurrentBoard(); closeHamburger()" style="border-top: 1px solid #004080; margin-top: 5px; padding-top: 15px;">Clear Current Board</button>
+                <button onclick="resetAllScores(); closeHamburger()" style="color: #ff6666;">Reset All Scores</button>
+            </div>
+    </div>
+    </h1>
+    
+    <div id="round1" class="round active">
+        <div id="board1" class="board"></div>
+        <div class="progress-bar" id="progressBar1"></div>
+    </div>
+    
+    <div id="round2" class="round">
+        <div id="board2" class="board"></div>
+        <div class="progress-bar" id="progressBar2"></div>
+    </div>
+    
+    <div id="round3" class="round">
+        <div id="board3" class="board"></div>
+        <div class="progress-bar" id="progressBar3"></div>
+    </div>
+    
+    <div id="round4" class="round">
+        <div id="finalJeopardy">
+            <div id="finalBox" onclick="toggleFinal()">
+                <span id="finalText">Final Jeopardy</span>
+            </div>
+            <div class="final-timer-section">
+                <button class="timer-btn" id="finalTimerBtn" onclick="toggleFinalTimer()">Start 30-Second Timer</button>
+                <button class="timer-btn" id="finalStopBtn" onclick="stopFinalTimer()" style="background-color: #cc0000; display: none;">Stop Timer</button>
+            <div class="progress-bar" id="finalProgressBar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="round5" class="round">
+        <div class="json-editor">
+            <h3>JSON Game Data Editor</h3>
+            <p>Edit the JSON below to customize all categories and questions:</p>
+            <textarea id="jsonInput" placeholder="Loading JSON data..."></textarea>
+            <div>
+                <button class="save" onclick="saveJSON()">Save & Update Game</button>
+                <button class="load" onclick="loadJSON()">Load Default Template</button>
+                <button onclick="exportJSON()">Export to File</button>
+                <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="importJSON()">
+                <button onclick="document.getElementById('fileInput').click()">Import from File</button>
+            </div>
+            <div id="jsonMessage"></div>
+        </div>
+    </div>
+    
+    <div id="modal">
+        <div id="modalContent">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-timer-section">
+            <button class="timer-btn" onclick="startModalTimer()">Start 5-Second Timer</button>
+            <div class="progress-bar" id="modalProgressBar"></div>
+        </div>
+        <div class="modal-scoring">
+            <div class="scoring-label">Award Points:</div>
+            <div class="scoring-section">
+                <button class="score-btn add" onclick="addPoints(1)">Team 1 +$<span id="currentPoints">0</span></button>
+                <button class="score-btn add" onclick="addPoints(2)">Team 2 +$<span id="currentPoints2">0</span></button>
+                <button class="score-btn add" onclick="addPoints(3)">Team 3 +$<span id="currentPoints3">0</span></button>
+                <button class="score-btn add" onclick="addPoints(4)">Team 4 +$<span id="currentPoints4">0</span></button>
+            </div>
+            <div class="scoring-label">Subtract Half Points:</div>
+            <div class="scoring-section">
+                <button class="score-btn subtract" onclick="subtractHalfPoints(1)">Team 1 -$<span id="halfPoints">0</span></button>
+                <button class="score-btn subtract" onclick="subtractHalfPoints(2)">Team 2 -$<span id="halfPoints2">0</span></button>
+                <button class="score-btn subtract" onclick="subtractHalfPoints(3)">Team 3 -$<span id="halfPoints3">0</span></button>
+                <button class="score-btn subtract" onclick="subtractHalfPoints(4)">Team 4 -$<span id="halfPoints4">0</span></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="score-tracker">
+        <div class="team-score">
+            <div class="team-name">Team 1</div>
+            <div class="team-points" id="team1Score" onclick="editScore(1)" title="Click to edit score">$0</div>
+        </div>
+        <div class="team-score">
+            <div class="team-name">Team 2</div>
+            <div class="team-points" id="team2Score" onclick="editScore(2)" title="Click to edit score">$0</div>
+        </div>
+        <div class="team-score">
+            <div class="team-name">Team 3</div>
+            <div class="team-points" id="team3Score" onclick="editScore(3)" title="Click to edit score">$0</div>
+        </div>
+        <div class="team-score">
+            <div class="team-name">Team 4</div>
+            <div class="team-points" id="team4Score" onclick="editScore(4)" title="Click to edit score">$0</div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        let gameData = {
+            round1: {
+                questions: {
+                    "Science": [
+                        {"hint": "This element has the chemical symbol 'H'", "answer": "What is Hydrogen?"},
+                        {"hint": "This planet is closest to the Sun", "answer": "What is Mercury?"},
+                        {"hint": "This force keeps us on the ground", "answer": "What is gravity?"},
+                        {"hint": "This gas makes up about 78% of Earth's atmosphere", "answer": "What is nitrogen?"},
+                        {"hint": "This is the hardest natural substance on Earth", "answer": "What is diamond?"}
+                    ],
+                    "History": [
+                        {"hint": "This war ended in 1945", "answer": "What is World War II?"},
+                        {"hint": "This president was assassinated in 1963", "answer": "Who is John F. Kennedy?"},
+                        {"hint": "This wall fell in 1989", "answer": "What is the Berlin Wall?"},
+                        {"hint": "This empire was ruled by Julius Caesar", "answer": "What is the Roman Empire?"},
+                        {"hint": "This ship sank in 1912", "answer": "What is the Titanic?"}
+                    ],
+                    "Movies": [
+                        {"hint": "This 1977 space opera started a famous franchise", "answer": "What is Star Wars?"},
+                        {"hint": "This movie features a great white shark", "answer": "What is Jaws?"},
+                        {"hint": "This animated movie features a young lion prince", "answer": "What is The Lion King?"},
+                        {"hint": "This movie features a boy wizard", "answer": "What is Harry Potter?"},
+                        {"hint": "This superhero movie features a billionaire in a metal suit", "answer": "What is Iron Man?"}
+                    ],
+                    "Sports": [
+                        {"hint": "This sport is played at Wimbledon", "answer": "What is tennis?"},
+                        {"hint": "This team sport has 11 players on each side", "answer": "What is soccer/football?"},
+                        {"hint": "This sport features a slam dunk", "answer": "What is basketball?"},
+                        {"hint": "This sport is played on a diamond", "answer": "What is baseball?"},
+                        {"hint": "This sport features a quarterback", "answer": "What is American football?"}
+                    ],
+                    "Geography": [
+                        {"hint": "This is the largest ocean on Earth", "answer": "What is the Pacific Ocean?"},
+                        {"hint": "This is the highest mountain in the world", "answer": "What is Mount Everest?"},
+                        {"hint": "This is the longest river in the world", "answer": "What is the Nile River?"},
+                        {"hint": "This is the smallest country in the world", "answer": "What is Vatican City?"},
+                        {"hint": "This continent is also a country", "answer": "What is Australia?"}
+                    ]
+                }
+            },
+            round2: {
+                questions: {
+                    "Technology": [
+                        {"hint": "This company created the iPhone", "answer": "What is Apple?"},
+                        {"hint": "This social media platform has a bird logo", "answer": "What is Twitter?"},
+                        {"hint": "This search engine company was founded by Larry Page and Sergey Brin", "answer": "What is Google?"},
+                        {"hint": "This programming language was created by Guido van Rossum", "answer": "What is Python?"},
+                        {"hint": "This virtual reality headset was created by Facebook", "answer": "What is Oculus?"}
+                    ],
+                    "Literature": [
+                        {"hint": "This author wrote 'Romeo and Juliet'", "answer": "Who is William Shakespeare?"},
+                        {"hint": "This novel features a character named Atticus Finch", "answer": "What is To Kill a Mockingbird?"},
+                        {"hint": "This book series features a hobbit named Frodo", "answer": "What is The Lord of the Rings?"},
+                        {"hint": "This dystopian novel was written by George Orwell", "answer": "What is 1984?"},
+                        {"hint": "This author wrote 'Pride and Prejudice'", "answer": "Who is Jane Austen?"}
+                    ],
+                    "Music": [
+                        {"hint": "This band released the album 'Abbey Road'", "answer": "Who are The Beatles?"},
+                        {"hint": "This composer wrote 'The Four Seasons'", "answer": "Who is Vivaldi?"},
+                        {"hint": "This instrument has 88 keys", "answer": "What is a piano?"},
+                        {"hint": "This genre originated in New Orleans", "answer": "What is jazz?"},
+                        {"hint": "This pop star is known as the 'King of Pop'", "answer": "Who is Michael Jackson?"}
+                    ],
+                    "Food": [
+                        {"hint": "This Italian dish is made with pasta, eggs, and cheese", "answer": "What is carbonara?"},
+                        {"hint": "This spice is the most expensive by weight", "answer": "What is saffron?"},
+                        {"hint": "This fruit is technically a berry", "answer": "What is a banana?"},
+                        {"hint": "This cooking method involves submerging food in hot oil", "answer": "What is deep frying?"},
+                        {"hint": "This fermented cabbage dish is popular in Korea", "answer": "What is kimchi?"}
+                    ],
+                    "Animals": [
+                        {"hint": "This is the largest mammal on Earth", "answer": "What is a blue whale?"},
+                        {"hint": "This animal is known for its black and white stripes", "answer": "What is a zebra?"},
+                        {"hint": "This bird cannot fly but can run very fast", "answer": "What is an ostrich?"},
+                        {"hint": "This animal sleeps 20 hours a day", "answer": "What is a koala?"},
+                        {"hint": "This animal can change its color to match its surroundings", "answer": "What is a chameleon?"}
+                    ]
+                }
+            },
+            round3: {
+                questions: {
+                    "Art": [
+                        {"hint": "This artist painted the Mona Lisa", "answer": "Who is Leonardo da Vinci?"},
+                        {"hint": "This artist cut off his own ear", "answer": "Who is Vincent van Gogh?"},
+                        {"hint": "This Spanish artist co-founded the Cubist movement", "answer": "Who is Pablo Picasso?"},
+                        {"hint": "This sculpture shows a man thinking", "answer": "What is The Thinker?"},
+                        {"hint": "This painting shows a woman with a pearl earring", "answer": "What is Girl with a Pearl Earring?"}
+                    ],
+                    "Politics": [
+                        {"hint": "This is the current President of the United States", "answer": "Who is Joe Biden?"},
+                        {"hint": "This document begins with 'We the People'", "answer": "What is the U.S. Constitution?"},
+                        {"hint": "This building houses the U.S. Congress", "answer": "What is the Capitol?"},
+                        {"hint": "This amendment gave women the right to vote", "answer": "What is the 19th Amendment?"},
+                        {"hint": "This term describes a government by the people", "answer": "What is democracy?"}
+                    ],
+                    "Medicine": [
+                        {"hint": "This organ pumps blood through your body", "answer": "What is the heart?"},
+                        {"hint": "This disease was eradicated worldwide in 1980", "answer": "What is smallpox?"},
+                        {"hint": "This part of the eye controls how much light enters", "answer": "What is the iris?"},
+                        {"hint": "This vitamin is produced when skin is exposed to sunlight", "answer": "What is Vitamin D?"},
+                        {"hint": "This is the largest organ in the human body", "answer": "What is the skin?"}
+                    ],
+                    "Space": [
+                        {"hint": "This planet is known as the Red Planet", "answer": "What is Mars?"},
+                        {"hint": "This was the first artificial satellite launched into space", "answer": "What is Sputnik?"},
+                        {"hint": "This is the closest star to Earth", "answer": "What is the Sun?"},
+                        {"hint": "This astronaut was the first person to walk on the moon", "answer": "Who is Neil Armstrong?"},
+                        {"hint": "This galaxy contains our solar system", "answer": "What is the Milky Way?"}
+                    ],
+                    "Mythology": [
+                        {"hint": "This Greek god rules the underworld", "answer": "Who is Hades?"},
+                        {"hint": "This Norse god wields a hammer called Mjolnir", "answer": "Who is Thor?"},
+                        {"hint": "This creature is half-man, half-horse", "answer": "What is a centaur?"},
+                        {"hint": "This Greek hero had a weakness in his heel", "answer": "Who is Achilles?"},
+                        {"hint": "This Egyptian god has the head of a jackal", "answer": "Who is Anubis?"}
+                    ]
+                }
+            },
+            finalJeopardy: {
+                hint: "This ancient wonder of the world is the only one still standing today.",
+                answer: "What is the Great Pyramid of Giza?"
+            }
+        };
+
+        const rounds = ["round1", "round2", "round3", "round4", "round5"];
+        const modal = document.getElementById("modal");
+        const modalContent = document.getElementById("modalContent");
+        let currentContent = "";
+        let showingAnswer = false;
+        let finalJeopardyState = "title"; // "title", "hint", "answer"
+        let finalTimerInterval = null;
+        let finalTimerRunning = false;
+        let teamScores = [0, 0, 0, 0]; // Scores for teams 1-4
+        let currentQuestionValue = 0;
+        let currentRound = 1;
+
+        // Hamburger menu functions
+        function toggleHamburger() {
+            const btn = document.querySelector('.hamburger-btn');
+            const dropdown = document.getElementById('hamburgerDropdown');
+            
+            btn.classList.toggle('active');
+            dropdown.classList.toggle('show');
+        }
+
+        function closeHamburger() {
+            const btn = document.querySelector('.hamburger-btn');
+            const dropdown = document.getElementById('hamburgerDropdown');
+            
+            btn.classList.remove('active');
+            dropdown.classList.remove('show');
+        }
+
+        // Close hamburger when clicking outside
+        document.addEventListener('click', function(event) {
+            const hamburgerMenu = document.querySelector('.hamburger-menu');
+            if (!hamburgerMenu.contains(event.target)) {
+                closeHamburger();
+            }
+        });
+
+        function showRound(n) {
+            rounds.forEach((id, i) => {
+                document.getElementById(id).classList.toggle("active", i === n - 1);
+            });
+            currentRound = n;
+        }
+
+        function clearBoard(roundNum) {
+            const board = document.getElementById(`board${roundNum}`);
+            Array.from(board.getElementsByClassName("question")).forEach(q => q.classList.remove("used"));
+        }
+
+        function createBoard(roundNum, multiplier) {
+            const board = document.getElementById(`board${roundNum}`);
+            if (!board) {
+                console.error(`Board element not found: board${roundNum}`);
+                return;
+            }
+            board.innerHTML = ""; // Clear existing content
+            
+            const roundKey = `round${roundNum}`;
+            const roundData = gameData[roundKey];
+            
+            if (!roundData || !roundData.questions) {
+                console.error(`No data found for ${roundKey}`);
+                return;
+            }
+
+            // Get categories from question object keys
+            const categories = Object.keys(roundData.questions);
+
+            // Create category headers
+            categories.forEach(cat => {
+                const catElem = document.createElement("div");
+                catElem.className = "category";
+                catElem.innerText = cat;
+                board.appendChild(catElem);
+                
+                // Adjust font size based on text length to fit in 2 lines
+                adjustCategoryFontSize(catElem);
+            });
+
+            // Create question grid
+            for (let i = 0; i < 5; i++) {
+                categories.forEach(category => {
+                    const q = document.createElement("div");
+                    q.className = "question";
+                    q.innerText = `$${(i + 1) * multiplier}`;
+                    
+                    const questionData = roundData.questions[category] && roundData.questions[category][i];
+                    if (questionData) {
+                        q.dataset.hint = questionData.hint;
+                        q.dataset.answer = questionData.answer;
+                    } else {
+                        q.dataset.hint = "No question data";
+                        q.dataset.answer = "No answer data";
+                    }
+                    
+                    q.onclick = () => showModal(q);
+                    board.appendChild(q);
+                });
+            }
+        }
+
+        function showModal(elem) {
+            currentContent = elem.dataset;
+            showingAnswer = false;
+            modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
+            modal.style.display = "flex";
+            elem.classList.add("used");
+            
+            // Extract dollar value from the clicked element
+            const dollarText = elem.innerText;
+            currentQuestionValue = parseInt(dollarText.replace('$', ''));
+            
+            // Update scoring button labels with current point values
+            updateScoringButtons();
+            
+            // Send question data to host UI via WebSocket
+            if (socket && socket.connected) {
+                socket.emit('jeopardyQuestion', {
+                    question: currentContent.hint,
+                    answer: currentContent.answer,
+                    value: currentQuestionValue,
+                    timestamp: Date.now()
+                });
+            }
+        }
+
+        modalContent.onclick = (e) => {
+            // Don't close if clicking the X button
+            if (e.target.classList.contains('modal-close')) {
+                return;
+            }
+            
+            if (!showingAnswer) {
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
+                showingAnswer = true;
+            } else {
+                closeModal();
+            }
+        };
+
+        function toggleFinal() {
+            const finalText = document.getElementById("finalText");
+            
+            if (finalJeopardyState === "title") {
+                finalText.innerHTML = "Final Jeopardy Hint:<br><br>" + gameData.finalJeopardy.hint;
+                finalJeopardyState = "hint";
+            } else if (finalJeopardyState === "hint") {
+                finalText.innerHTML = "Final Jeopardy Answer:<br><br>" + gameData.finalJeopardy.answer;
+                finalJeopardyState = "answer";
+            } else {
+                finalText.innerHTML = "Final Jeopardy";
+                finalJeopardyState = "title";
+                // Stop timer if running when resetting
+                if (finalTimerRunning) {
+                    stopFinalTimer();
+                }
+            }
+        }
+
+        function startModalTimer() {
+            startTimer(5, false, 'modalProgressBar');
+        }
+
+        function adjustCategoryFontSize(element) {
+            const text = element.innerText;
+            let fontSize = 36; // Start with default size
+            
+            // Only adjust font size if text is longer than typical category names
+            if (text.length > 15) {
+                // Adjust font size based on text length
+                if (text.length > 50) {
+                    fontSize = 18;
+                } else if (text.length > 35) {
+                    fontSize = 22;
+                } else if (text.length > 25) {
+                    fontSize = 26;
+                } else {
+                    fontSize = 30;
+                }
+                
+                // Set the font size for this specific element only
+                element.style.fontSize = fontSize + 'px';
+                
+                // Fine-tune by checking if text actually fits in 2 lines
+                setTimeout(() => {
+                    const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+                    const maxHeight = lineHeight * 2;
+                    
+                    while (element.scrollHeight > maxHeight && fontSize > 14) {
+                        fontSize -= 2;
+                        element.style.fontSize = fontSize + 'px';
+                    }
+                }, 0);
+            }
+            // If text is 15 characters or less, keep the default 36px font size (no adjustment needed)
+        }
+
+        function toggleFinalTimer() {
+            if (finalTimerRunning) {
+                stopFinalTimer();
+            } else {
+                startFinalTimer();
+            }
+        }
+
+        function startFinalTimer() {
+            const bar = document.getElementById('finalProgressBar');
+            const startBtn = document.getElementById('finalTimerBtn');
+            const stopBtn = document.getElementById('finalStopBtn');
+            
+            bar.classList.add("active");
+            bar.innerHTML = "";
+            startBtn.style.display = "none";
+            stopBtn.style.display = "inline-block";
+            finalTimerRunning = true;
+            
+            // Create 30 timer pieces
+            for (let i = 0; i < 30; i++) {
+                const piece = document.createElement("div");
+                piece.className = "bar-piece";
+                bar.appendChild(piece);
+            }
+            
+            let count = 0;
+            const pieces = Array.from(bar.children);
+            finalTimerInterval = setInterval(() => {
+                if (count < pieces.length && finalTimerRunning) {
+                    pieces[count].classList.add("off");
+                    count++;
+                } else {
+                    stopFinalTimer();
+                    if (count >= pieces.length) {
+                        // Timer completed
+                        bar.classList.add("bar-flash");
+                        setTimeout(() => bar.classList.remove("bar-flash"), 500);
+                    }
+                }
+            }, 1000);
+        }
+
+        function stopFinalTimer() {
+            if (finalTimerInterval) {
+                clearInterval(finalTimerInterval);
+                finalTimerInterval = null;
+            }
+            finalTimerRunning = false;
+            const startBtn = document.getElementById('finalTimerBtn');
+            const stopBtn = document.getElementById('finalStopBtn');
+            startBtn.style.display = "inline-block";
+            stopBtn.style.display = "none";
+            document.getElementById('finalProgressBar').classList.remove("active");
+        }
+
+        // Scoring Functions
+        function updateScoringButtons() {
+            // Update add points buttons
+            document.getElementById('currentPoints').textContent = currentQuestionValue;
+            document.getElementById('currentPoints2').textContent = currentQuestionValue;
+            document.getElementById('currentPoints3').textContent = currentQuestionValue;
+            document.getElementById('currentPoints4').textContent = currentQuestionValue;
+            
+            // Update subtract half points buttons
+            const halfValue = Math.floor(currentQuestionValue / 2);
+            document.getElementById('halfPoints').textContent = halfValue;
+            document.getElementById('halfPoints2').textContent = halfValue;
+            document.getElementById('halfPoints3').textContent = halfValue;
+            document.getElementById('halfPoints4').textContent = halfValue;
+        }
+
+        function addPoints(teamNumber) {
+            teamScores[teamNumber - 1] += currentQuestionValue;
+            updateScoreDisplay();
+            closeModal();
+        }
+
+        function subtractHalfPoints(teamNumber) {
+            const halfValue = Math.floor(currentQuestionValue / 2);
+            teamScores[teamNumber - 1] -= halfValue;
+            updateScoreDisplay();
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+            // Hide progress bar when modal closes
+            document.getElementById("modalProgressBar").classList.remove("active");
+        }
+
+        function updateScoreDisplay() {
+            for (let i = 1; i <= 4; i++) {
+                const scoreElement = document.getElementById(`team${i}Score`);
+                const score = teamScores[i - 1];
+                scoreElement.textContent = `$${score.toLocaleString()}`;
+                
+                // Add negative class for negative scores
+                if (score < 0) {
+                    scoreElement.classList.add('negative');
+                } else {
+                    scoreElement.classList.remove('negative');
+                }
+            }
+        }
+
+        function resetAllScores() {
+            teamScores = [0, 0, 0, 0];
+            updateScoreDisplay();
+        }
+
+        function clearCurrentBoard() {
+            if (currentRound >= 1 && currentRound <= 3) {
+                clearBoard(currentRound);
+            }
+        }
+
+        function editScore(teamNumber) {
+            
+            const scoreElement = document.getElementById(`team${teamNumber}Score`);
+            if (!scoreElement) {
+                console.error('Score element not found for team:', teamNumber);
+                return;
+            }
+            
+            const currentScore = teamScores[teamNumber - 1];
+            
+            // Prevent multiple edits
+            if (scoreElement.querySelector('.score-input')) {
+                return;
+            }
+            
+            // Create input field
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'score-input';
+            input.value = currentScore;
+            
+            // Replace the score display with input
+            scoreElement.innerHTML = '';
+            scoreElement.appendChild(input);
+            scoreElement.classList.add('editing');
+            
+            // Focus and select the input
+            input.focus();
+            input.select();
+            
+            // Save on Enter or blur
+            function saveScore() {
+                console.log('Saving score:', input.value); // Debug log
+                const newScore = parseInt(input.value) || 0;
+                teamScores[teamNumber - 1] = newScore;
+                
+                // Restore original display
+                scoreElement.innerHTML = '';
+                scoreElement.classList.remove('editing');
+                updateScoreDisplay();
+            }
+            
+            // Save on Enter key
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveScore();
+                }
+            });
+            
+            // Save when clicking away
+            input.addEventListener('blur', saveScore);
+            
+            // Cancel on Escape
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    scoreElement.innerHTML = '';
+                    scoreElement.classList.remove('editing');
+                    updateScoreDisplay();
+                }
+            });
+        }
+
+        function startTimer(seconds, isFinal, barId) {
+            const bar = document.getElementById(barId);
+            if (!bar) return; // Add null check
+            
+            bar.classList.add("active");
+            bar.innerHTML = "";
+            
+            const pieces = [];
+            for (let i = 0; i < (isFinal ? 30 : 5); i++) {
+                const piece = document.createElement("div");
+                piece.className = "bar-piece";
+                bar.appendChild(piece);
+                pieces.push(piece); // Store reference
+            }
+            
+            let count = 0;
+            const interval = setInterval(() => {
+                if (count < pieces.length) {
+                    pieces[count].classList.add("off");
+                    count++;
+                } else {
+                    clearInterval(interval); // Prevent memory leak
+                    bar.classList.add("bar-flash");
+                    setTimeout(() => {
+                        if (bar) bar.classList.remove("bar-flash");
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        // JSON Editor functions
+        function loadJSON() {
+            document.getElementById("jsonInput").value = JSON.stringify(gameData, null, 2);
+            showMessage("Default template loaded!", "success");
+        }
+
+        function saveJSON() {
+            try {
+                const jsonText = document.getElementById("jsonInput").value;
+                const newData = JSON.parse(jsonText);
+                
+                // Validate structure
+                if (!validateGameData(newData)) {
+                    throw new Error("Invalid game data structure");
+                }
+                
+                gameData = newData;
+                
+                // Rebuild all boards
+                createBoard(1, 100);
+                createBoard(2, 200);
+                createBoard(3, 300);
+                
+                // Reset final jeopardy to initial state
+                const finalText = document.getElementById("finalText");
+                if (finalText) {
+                    finalText.innerHTML = "Final Jeopardy";
+                    finalJeopardyState = "title";
+                    // Stop timer if running
+                    if (finalTimerRunning) {
+                        stopFinalTimer();
+                    }
+                }
+                
+                showMessage("Game data saved and updated successfully!", "success");
+            } catch (error) {
+                showMessage("Error saving JSON: " + error.message, "error");
+            }
+        }
+
+        function validateGameData(data) {
+            const requiredRounds = ['round1', 'round2', 'round3', 'finalJeopardy'];
+            
+            for (let round of requiredRounds) {
+                if (!data[round]) return false;
+            }
+            
+            for (let i = 1; i <= 3; i++) {
+                const round = data[`round${i}`];
+                if (!round.questions || typeof round.questions !== 'object') return false;
+                
+                const categories = Object.keys(round.questions);
+                if (categories.length !== 5) return false;
+                
+                for (let category of categories) {
+                    if (!round.questions[category] || !Array.isArray(round.questions[category]) || round.questions[category].length !== 5) return false;
+                    
+                    for (let question of round.questions[category]) {
+                        if (!question.hint || !question.answer) return false;
+                    }
+                }
+            }
+            
+            if (!data.finalJeopardy.hint || !data.finalJeopardy.answer) return false;
+            
+            return true;
+        }
+
+        function exportJSON() {
+            const dataStr = JSON.stringify(gameData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'jeopardy-game-data.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            showMessage("Game data exported successfully!", "success");
+        }
+
+        function importJSON() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        if (validateGameData(importedData)) {
+                            document.getElementById("jsonInput").value = JSON.stringify(importedData, null, 2);
+                            showMessage("JSON file imported successfully! Click 'Save & Update Game' to apply changes.", "success");
+                        } else {
+                            throw new Error("Invalid game data structure in imported file");
+                        }
+                    } catch (error) {
+                        showMessage("Error importing JSON: " + error.message, "error");
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById("jsonMessage");
+            messageDiv.textContent = message;
+            messageDiv.className = type === "error" ? "error-message" : "success-message";
+            setTimeout(() => {
+                messageDiv.textContent = "";
+                messageDiv.className = "";
+            }, 5000);
+        }
+
+        // Simple buzz notification system
+        console.log('Setting up buzz notifications...');
+        
+        // Initialize after page loads
+        setTimeout(function() {
+            try {
+                console.log('Initializing buzz system...');
+                
+                // Check if io is available
+                if (typeof io === 'undefined') {
+                    console.warn('Socket.IO not available - buzz notifications disabled');
+                    return;
+                }
+                
+                // Initialize socket
+                var socket = io();
+                console.log('Socket created');
+                
+                socket.on('connect', function() {
+                    console.log('Jeopardy board connected to server');
+                    socket.emit('identifyClient', 'jeopardy');
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('Jeopardy board disconnected');
+                });
+                
+                socket.on('newBuzz', function(buzzData) {
+                    console.log('Buzz received:', buzzData);
+                    
+                    // Remove existing notification
+                    var existing = document.querySelector('.buzz-notification');
+                    if (existing) {
+                        existing.remove();
+                    }
+                    
+                    // Create notification
+                    var notification = document.createElement('div');
+                    notification.className = 'buzz-notification';
+                    
+                    var playerDiv = document.createElement('div');
+                    playerDiv.className = 'buzz-player-name';
+                    playerDiv.textContent = buzzData.playerName;
+                    
+                    var teamDiv = document.createElement('div');
+                    teamDiv.className = 'buzz-team-name';
+                    teamDiv.textContent = 'Team ' + buzzData.team;
+                    
+                    // Set team color
+                    var teamColors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf'];
+                    if (buzzData.team >= 1 && buzzData.team <= 4) {
+                        teamDiv.style.color = teamColors[buzzData.team - 1];
+                    }
+                    
+                    notification.appendChild(playerDiv);
+                    notification.appendChild(teamDiv);
+                    document.body.appendChild(notification);
+                    
+                    // Auto-hide after 8 seconds
+                    setTimeout(function() {
+                        if (notification.parentNode) {
+                            notification.classList.add('hide');
+                            setTimeout(function() {
+                                if (notification.parentNode) {
+                                    notification.remove();
+                                }
+                            }, 300);
+                        }
+                    }, 8000);
+                    
+                    // Auto-start timer if modal is open
+                    var modal = document.getElementById('modal');
+                    var progressBar = document.getElementById('modalProgressBar');
+                    
+                    if (modal && modal.style.display === 'flex' && progressBar && !progressBar.classList.contains('active')) {
+                        console.log('Auto-starting 5-second timer');
+                        if (typeof startModalTimer === 'function') {
+                            startModalTimer();
+                        }
+                    }
+                });
+                
+                console.log('Buzz notification system ready');
+                
+            } catch (error) {
+                console.error('Error setting up buzz notifications:', error);
+            }
+        }, 1000);
+
+        // Initialize game
+        createBoard(1, 100);
+        createBoard(2, 200);
+        createBoard(3, 300);
+        
+        // Initialize score display
+        updateScoreDisplay();
+        
+        // Add click listeners for score editing
+        for (let i = 1; i <= 4; i++) {
+            const scoreElement = document.getElementById(`team${i}Score`);
+            if (scoreElement) {
+                scoreElement.addEventListener('click', function() {
+                    editScore(i);
+                });
+            }
+        }
+        
+        // Load JSON in editor on page load
+        loadJSON();
+    </script>
+</body>
+
+</html>

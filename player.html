@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Buzzer - Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(0, 31, 77, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .player-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .team-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+
+        .status.waiting {
+            background: rgba(255, 165, 0, 0.3);
+            color: #ffa500;
+        }
+
+        .status.enabled {
+            background: rgba(0, 255, 0, 0.3);
+            color: #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        .status.locked {
+            background: rgba(255, 0, 0, 0.3);
+            color: #ff6666;
+        }
+
+        .status.answered {
+            background: rgba(128, 0, 128, 0.3);
+            color: #b19cd9;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        .buzz-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .buzz-button {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            border: none;
+            font-size: 2.5em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .buzz-button.ready {
+            background: linear-gradient(45deg, #00ff00, #32cd32);
+            color: #004d00;
+            animation: buzzReady 2s infinite;
+        }
+
+        .buzz-button.early-warning {
+            background: #4a7c59;
+            color: #ffffff;
+            /* No animation for early warning state */
+        }
+
+        .buzz-button.disabled {
+            background: #666;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .buzz-button.cooldown {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+            color: white;
+            cursor: not-allowed;
+        }
+
+        .buzz-button.buzzed {
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            color: #b8860b;
+            animation: buzzed 1s infinite;
+        }
+
+        @keyframes buzzReady {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes buzzed {
+            0% { transform: scale(1); box-shadow: 0 0 20px #ffd700; }
+            50% { transform: scale(1.1); box-shadow: 0 0 40px #ffd700; }
+            100% { transform: scale(1); box-shadow: 0 0 20px #ffd700; }
+        }
+
+        .buzz-text {
+            font-size: 0.8em;
+            margin-top: 10px;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        .team-list {
+            background: rgba(0, 31, 77, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .team-list h3 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .teammates {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .teammate {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            border: 2px solid transparent;
+        }
+
+        .teammate.self {
+            border-color: #ffd700;
+            background: rgba(255, 215, 0, 0.2);
+        }
+
+        .teammate.online {
+            position: relative;
+        }
+
+        .teammate.online::after {
+            content: '●';
+            color: #00ff00;
+            position: absolute;
+            top: -2px;
+            right: -5px;
+            font-size: 12px;
+        }
+
+        .buzz-history {
+            background: rgba(0, 31, 77, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .buzz-history h3 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+
+        .buzz-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 0.9em;
+        }
+
+        .buzz-item.winner {
+            background: rgba(255, 215, 0, 0.3);
+            border: 2px solid #ffd700;
+        }
+
+        .buzz-item.first {
+            background: rgba(0, 255, 0, 0.2);
+            border: 2px solid #00ff00;
+        }
+
+        .buzz-rank {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .cooldown-timer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.8em;
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            .buzz-button {
+                width: 200px;
+                height: 200px;
+                font-size: 2em;
+            }
+            
+            .player-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-height: 600px) {
+            .buzz-button {
+                width: 150px;
+                height: 150px;
+                font-size: 1.5em;
+            }
+            
+            .team-list, .buzz-history {
+                margin-bottom: 10px;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="player-info">
+            <div class="player-name" id="playerName">Loading...</div>
+            <div class="team-badge" id="teamBadge">Team ?</div>
+        </div>
+        <div class="status" id="gameStatus">Waiting for host...</div>
+    </div>
+
+    <div class="team-list">
+        <h3>Your Team</h3>
+        <div class="teammates" id="teammates">
+            <div>Loading teammates...</div>
+        </div>
+    </div>
+
+    <div class="buzz-section">
+        <button class="buzz-button disabled" id="buzzButton">
+            🚨
+            <div class="cooldown-timer" id="cooldownTimer" style="display: none;"></div>
+        </button>
+        <div class="buzz-text" id="buzzText">Wait for host to enable buzzing</div>
+    </div>
+
+    <div class="buzz-history">
+        <h3>Current Question Buzzes</h3>
+        <div id="buzzList">
+            <div style="text-align: center; opacity: 0.5;">No buzzes yet</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="index.html" class="action-btn">🚪 Leave Game</a>
+        <button class="action-btn" onclick="location.reload()">🔄 Refresh</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="shared.js"></script>
+    <script>
+        let currentPlayer = null;
+        let buzzCooldown = null;
+
+        // Initialize player
+        function initializePlayer() {
+            const playerData = sessionStorage.getItem('currentPlayer');
+            if (!playerData) {
+                alert('No player data found. Redirecting to join page.');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            currentPlayer = JSON.parse(playerData);
+            
+            // Update UI with player info
+            document.getElementById('playerName').textContent = currentPlayer.name;
+            document.getElementById('teamBadge').textContent = getTeamName(currentPlayer.team);
+            document.getElementById('teamBadge').style.backgroundColor = getTeamColor(currentPlayer.team);
+            
+            // Update UI immediately
+            updateGameState();
+            
+            // Keep player presence updated
+            setInterval(() => {
+                updatePlayerPresence(currentPlayer.id);
+            }, 5000);
+        }
+
+        // Update game state and UI
+        function updateGameState() {
+            const gameState = getGameState();
+            updateStatus(gameState);
+            updateTeammates(gameState);
+            updateBuzzButton(gameState);
+            updateBuzzHistory(gameState);
+        }
+
+        // Update game status
+        function updateStatus(gameState) {
+            const statusEl = document.getElementById('gameStatus');
+            
+            // Check if player is in cooldown (only for early buzzes)
+            const playerBuzz = gameState.buzzes.find(b => b.playerId === currentPlayer.id);
+            if (playerBuzz && playerBuzz.isEarlyBuzz) {
+                const timeSince = Date.now() - playerBuzz.timestamp;
+                if (timeSince < gameState.hostControls.buzzCooldown) {
+                    statusEl.textContent = 'Early buzz cooldown active';
+                    statusEl.className = 'status locked';
+                    return;
+                }
+            }
+            
+            // Check if someone else has already buzzed
+            const someoneElseBuzzed = gameState.buzzes.find(b => 
+                b.questionId === gameState.currentQuestion && 
+                b.playerId !== currentPlayer.id && 
+                !b.isWinner
+            );
+            if (someoneElseBuzzed) {
+                statusEl.textContent = `${someoneElseBuzzed.playerName} buzzed in first`;
+                statusEl.className = 'status answered';
+                return;
+            }
+            
+            // Check if question already answered
+            const winner = gameState.buzzes.find(b => 
+                b.questionId === gameState.currentQuestion && b.isWinner
+            );
+            if (winner) {
+                statusEl.textContent = `Question answered by ${winner.playerName}`;
+                statusEl.className = 'status answered';
+                return;
+            }
+            
+            // Check if this player has buzzed
+            if (playerBuzz && !playerBuzz.isWinner) {
+                const buzzType = playerBuzz.isEarlyBuzz ? '(early) ' : '';
+                statusEl.textContent = `You ${buzzType}buzzed in!`;
+                statusEl.className = 'status enabled';
+                return;
+            }
+            
+            if (!gameState.hostControls.buzzEnabled) {
+                statusEl.textContent = 'You can buzz in early (with penalty) or wait for host...';
+                statusEl.className = 'status waiting';
+            } else {
+                statusEl.textContent = 'Buzzing enabled! Press the button!';
+                statusEl.className = 'status enabled';
+            }
+        }
+
+        // Update teammates list
+        function updateTeammates(gameState) {
+            const teammatesEl = document.getElementById('teammates');
+            const teammates = getTeamMembers(currentPlayer.team);
+            
+            if (teammates.length === 0) {
+                teammatesEl.innerHTML = '<div>No teammates yet</div>';
+                return;
+            }
+
+            teammatesEl.innerHTML = teammates.map(teammate => {
+                const isOnline = teammate.lastSeen && (Date.now() - teammate.lastSeen) < 30000;
+                const isSelf = teammate.id === currentPlayer.id;
+                return `
+                    <div class="teammate ${isSelf ? 'self' : ''} ${isOnline ? 'online' : ''}">
+                        ${teammate.name}${isSelf ? ' (You)' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update buzz button
+        function updateBuzzButton(gameState) {
+            const buttonEl = document.getElementById('buzzButton');
+            const textEl = document.getElementById('buzzText');
+            const timerEl = document.getElementById('cooldownTimer');
+            
+            // Clear any existing timer
+            if (buzzCooldown) {
+                clearInterval(buzzCooldown);
+                buzzCooldown = null;
+                timerEl.style.display = 'none';
+            }
+
+            // Check if player is in early buzz cooldown
+            const playerBuzz = gameState.buzzes.find(b => 
+                b.playerId === currentPlayer.id && 
+                b.questionId === gameState.currentQuestion
+            );
+
+            if (playerBuzz && playerBuzz.isEarlyBuzz) {
+                const timeSince = Date.now() - playerBuzz.timestamp;
+                if (timeSince < gameState.hostControls.buzzCooldown) {
+                    // In early buzz cooldown
+                    buttonEl.className = 'buzz-button cooldown';
+                    buttonEl.disabled = true;
+                    textEl.textContent = 'Early buzz penalty';
+                    
+                    // Show countdown timer
+                    timerEl.style.display = 'block';
+                    startCooldownTimer(gameState.hostControls.buzzCooldown - timeSince);
+                    return;
+                }
+            }
+
+            // Check if this player already buzzed (and it's not an early buzz that's finished cooling down)
+            if (playerBuzz && !playerBuzz.isEarlyBuzz) {
+                buttonEl.className = 'buzz-button buzzed';
+                buttonEl.disabled = true;
+                textEl.textContent = 'You buzzed in!';
+                return;
+            }
+
+            // Check if someone else has already buzzed
+            const someoneElseBuzzed = gameState.buzzes.find(b => 
+                b.questionId === gameState.currentQuestion && 
+                b.playerId !== currentPlayer.id && 
+                !b.isWinner
+            );
+            if (someoneElseBuzzed) {
+                buttonEl.className = 'buzz-button disabled';
+                buttonEl.disabled = true;
+                textEl.textContent = `${someoneElseBuzzed.playerName} buzzed first`;
+                return;
+            }
+
+            // Check if question already answered
+            const winner = gameState.buzzes.find(b => 
+                b.questionId === gameState.currentQuestion && b.isWinner
+            );
+            if (winner) {
+                buttonEl.className = 'buzz-button disabled';
+                buttonEl.disabled = true;
+                textEl.textContent = 'Question already answered';
+                return;
+            }
+
+            // Ready to buzz (always available now)
+            buttonEl.disabled = false;
+            
+            if (!gameState.hostControls.buzzEnabled) {
+                buttonEl.className = 'buzz-button early-warning';
+                textEl.textContent = '2 second penalty if you buzz early';
+            } else {
+                buttonEl.className = 'buzz-button ready';
+                textEl.textContent = 'TAP TO BUZZ IN!';
+            }
+        }
+
+        // Start cooldown timer
+        function startCooldownTimer(remainingTime) {
+            const timerEl = document.getElementById('cooldownTimer');
+            let remaining = Math.ceil(remainingTime / 1000);
+            
+            timerEl.textContent = remaining;
+            
+            buzzCooldown = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(buzzCooldown);
+                    buzzCooldown = null;
+                    timerEl.style.display = 'none';
+                    updateGameState(); // Refresh to enable button
+                } else {
+                    timerEl.textContent = remaining;
+                }
+            }, 1000);
+        }
+
+        // Update buzz history
+        function updateBuzzHistory(gameState) {
+            const listEl = document.getElementById('buzzList');
+            const buzzes = getCurrentQuestionBuzzes();
+            
+            if (buzzes.length === 0) {
+                listEl.innerHTML = '<div style="text-align: center; opacity: 0.5;">No buzzes yet</div>';
+                return;
+            }
+
+            listEl.innerHTML = buzzes.map((buzz, index) => {
+                const isWinner = buzz.isWinner;
+                const isFirst = index === 0;
+                const teamColor = getTeamColor(buzz.team);
+                
+                return `
+                    <div class="buzz-item ${isWinner ? 'winner' : ''} ${isFirst && !isWinner ? 'first' : ''}">
+                        <div>
+                            <span class="buzz-rank">#${index + 1}</span>
+                            <span style="color: ${teamColor};">${buzz.playerName}</span>
+                            <span>(${getTeamName(buzz.team)})</span>
+                            ${isWinner ? ' 🏆' : ''}
+                        </div>
+                        <div>${formatTime(buzz.timestamp)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Handle buzz button click
+        document.getElementById('buzzButton').addEventListener('click', async () => {
+            if (!isConnected()) {
+                showBuzzError('Not connected to server');
+                return;
+            }
+
+            try {
+                const result = await addBuzz(currentPlayer.id, currentPlayer.name, currentPlayer.team);
+                
+                // Success - UI will update via WebSocket
+                // Vibrate if supported
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                }
+            } catch (error) {
+                // Handle errors
+                let message = error.message || 'Could not buzz in';
+                if (error.reason) {
+                    switch (error.reason) {
+                        case 'cooldown':
+                            message = `Please wait ${Math.ceil(error.remainingTime / 1000)} seconds`;
+                            break;
+                        case 'already_answered':
+                            message = 'Question already answered';
+                            break;
+                        case 'someone_already_buzzed':
+                            message = error.message;
+                            break;
+                        case 'no_connection':
+                            message = 'Not connected to server';
+                            break;
+                    }
+                }
+                
+                showBuzzError(message);
+            }
+        });
+
+        function showBuzzError(message) {
+            const textEl = document.getElementById('buzzText');
+            const originalText = textEl.textContent;
+            textEl.textContent = message;
+            textEl.style.color = '#ff6666';
+            
+            setTimeout(() => {
+                textEl.style.color = '';
+                updateGameState(); // Refresh text
+            }, 2000);
+        }
+
+        // Listen for game state changes
+        window.addEventListener('gameStateChanged', () => {
+            updateGameState();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (buzzCooldown) {
+                clearInterval(buzzCooldown);
+            }
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializePlayer);
+    </script>
+</body>
+</html> 
