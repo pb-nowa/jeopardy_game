@@ -874,8 +874,8 @@
             updateScoringButtons();
             
             // Send question data to host UI via WebSocket
-            if (socket && socket.connected) {
-                socket.emit('jeopardyQuestion', {
+            if (jeopardySocket && jeopardySocket.connected) {
+                jeopardySocket.emit('jeopardyQuestion', {
                     question: currentContent.hint,
                     answer: currentContent.answer,
                     value: currentQuestionValue,
@@ -1055,6 +1055,15 @@
             modal.style.display = "none";
             // Hide progress bar when modal closes
             document.getElementById("modalProgressBar").classList.remove("active");
+            
+            // Clear the jeopardy question display on host UI
+            // Access the jeopardy socket directly since it's in the global scope after initialization
+            if (typeof jeopardySocket !== 'undefined' && jeopardySocket && jeopardySocket.connected) {
+                jeopardySocket.emit('clearHostJeopardyDisplay');
+                console.log('Emitted clearHostJeopardyDisplay event');
+            } else {
+                console.warn('Jeopardy socket not available to emit clearHostJeopardyDisplay');
+            }
         }
 
         function updateScoreDisplay() {
@@ -1321,6 +1330,9 @@
         // Simple buzz notification system
         console.log('Setting up buzz notifications...');
         
+        // Declare jeopardy socket globally
+        var jeopardySocket;
+        
         // Initialize after page loads
         setTimeout(function() {
             try {
@@ -1333,12 +1345,12 @@
                 }
                 
                 // Initialize socket
-                var socket = io();
+                jeopardySocket = io();
                 console.log('Socket created');
                 
-                socket.on('connect', function() {
+                jeopardySocket.on('connect', function() {
                     console.log('Jeopardy board connected to server');
-                    socket.emit('identifyClient', 'jeopardy');
+                    jeopardySocket.emit('identifyClient', 'jeopardy');
                     
                     // Request current game state
                     setTimeout(function() {
@@ -1347,12 +1359,12 @@
                     }, 500);
                 });
                 
-                socket.on('disconnect', function() {
+                jeopardySocket.on('disconnect', function() {
                     console.log('Jeopardy board disconnected');
                 });
                 
                 // Listen for game state updates
-                socket.on('gameStateUpdate', function(gameState) {
+                jeopardySocket.on('gameStateUpdate', function(gameState) {
                     console.log('Jeopardy board: Game state update received');
                     console.log('Full gameState:', gameState);
                     console.log('teamScores in gameState:', gameState ? gameState.teamScores : 'undefined');
@@ -1360,24 +1372,44 @@
                 });
                 
                 // Listen for scoring events
-                socket.on('buzzMarkedCorrect', function(data) {
+                jeopardySocket.on('buzzMarkedCorrect', function(data) {
                     console.log('Buzz marked correct:', data);
                     // Scores will be updated via gameStateUpdate
+                    
+                    // If modal is open and showing hint, switch to answer
+                    var modal = document.getElementById('modal');
+                    if (modal && modal.style.display === 'flex' && !showingAnswer && currentContent) {
+                        console.log('Switching modal from hint to answer');
+                        var modalContent = document.getElementById('modalContent');
+                        if (modalContent) {
+                            modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
+                            showingAnswer = true;
+                        }
+                    }
                 });
                 
-                socket.on('buzzMarkedWrong', function(data) {
+                jeopardySocket.on('buzzMarkedWrong', function(data) {
                     console.log('Buzz marked wrong:', data);
                     // Scores will be updated via gameStateUpdate
                 });
                 
-                socket.on('teamScoresReset', function() {
+                jeopardySocket.on('teamScoresReset', function() {
                     console.log('Team scores reset by server');
                     // Reset local scores
                     teamScores = [0, 0, 0, 0];
                     updateScoreDisplay();
                 });
                 
-                socket.on('newBuzz', function(buzzData) {
+                jeopardySocket.on('closeModal', function() {
+                    console.log('Close modal command received from host');
+                    // Close the modal if it's open
+                    var modal = document.getElementById('modal');
+                    if (modal && modal.style.display === 'flex') {
+                        closeModal();
+                    }
+                });
+                
+                jeopardySocket.on('newBuzz', function(buzzData) {
                     console.log('Buzz received:', buzzData);
                     
                     // Remove existing notification

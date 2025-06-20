@@ -82,6 +82,11 @@ function initializeSocket() {
         window.dispatchEvent(new CustomEvent('jeopardyQuestionReceived', { detail: questionData }));
     });
     
+    socket.on('clearJeopardyDisplay', () => {
+        console.log('Socket received clearJeopardyDisplay event');
+        window.dispatchEvent(new CustomEvent('clearJeopardyDisplayReceived'));
+    });
+    
     return socket;
 }
 
@@ -233,6 +238,24 @@ function resetTeamScores() {
     socket.emit('resetTeamScores');
 }
 
+function closeJeopardyModal() {
+    if (!socket || !socket.connected) {
+        console.error('Not connected to server');
+        return;
+    }
+    
+    socket.emit('closeJeopardyModal');
+}
+
+function clearHostJeopardyDisplay() {
+    if (!socket || !socket.connected) {
+        console.error('Not connected to server');
+        return;
+    }
+    
+    socket.emit('clearHostJeopardyDisplay');
+}
+
 // Get team members
 function getTeamMembers(teamNumber) {
     return gameState.players.filter(p => p.team === teamNumber);
@@ -328,6 +351,8 @@ if (typeof module !== 'undefined' && module.exports) {
         newQuestion,
         resetGame,
         resetTeamScores,
+        closeJeopardyModal,
+        clearHostJeopardyDisplay,
         getTeamMembers,
         getCurrentQuestionBuzzes,
         getFastestBuzz,

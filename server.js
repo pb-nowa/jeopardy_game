@@ -453,6 +453,18 @@ io.on('connection', (socket) => {
         console.log('Team scores reset to 0');
     });
 
+    socket.on('closeJeopardyModal', () => {
+        // Send event to jeopardy board to close modal
+        io.emit('closeModal');
+        console.log('Close modal command sent to jeopardy board');
+    });
+
+    socket.on('clearHostJeopardyDisplay', () => {
+        // Send event to host to clear jeopardy question display
+        io.emit('clearJeopardyDisplay');
+        console.log('Clear jeopardy display command sent to host');
+    });
+
     socket.on('newQuestion', () => {
         // Reset for new question
         gameState.hostControls.buzzEnabled = false;

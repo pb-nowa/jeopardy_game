@@ -502,9 +502,6 @@
                 <button class="control-btn disable" id="disableBuzzBtn" onclick="disableBuzzing()">
                     Stop Buzzing
                 </button>
-                <button class="control-btn secondary" onclick="startNewQuestion()">
-                    New Question
-                </button>
             </div>
         </div>
 
@@ -765,10 +762,6 @@
             setBuzzingEnabled(false);
         }
 
-        function startNewQuestion() {
-            newQuestion();
-        }
-
         function markCorrect(buzzId) {
             setBuzzWinner(buzzId);
         }
@@ -835,6 +828,16 @@
         window.addEventListener('jeopardyQuestionReceived', (event) => {
             console.log('Host: Jeopardy question received:', event.detail);
             updateJeopardyDisplay(event.detail);
+        });
+
+        // Listen for clear jeopardy display command
+        window.addEventListener('clearJeopardyDisplayReceived', () => {
+            console.log('Clear jeopardy display command received');
+            const displayEl = document.getElementById('jeopardyDisplay');
+            if (displayEl) {
+                displayEl.style.display = 'none';
+            }
+            window.currentJeopardyData = null;
         });
 
         // Update connection status display
@@ -999,6 +1002,14 @@
             const displayEl = document.getElementById('jeopardyDisplay');
             displayEl.style.display = 'none';
             window.currentJeopardyData = null;
+            
+            // Close modal on jeopardy board
+            if (typeof closeJeopardyModal === 'function') {
+                closeJeopardyModal();
+            }
+            
+            // Also call new question logic to clear buzzes and reset state
+            newQuestion();
         }
 
         // Listen for scoring events
