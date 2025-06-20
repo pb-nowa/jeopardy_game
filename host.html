@@ -22,22 +22,22 @@
         .header {
             background: rgba(0, 31, 77, 0.9);
             border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 10px;
+            margin-bottom: 15px;
             text-align: center;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
         .title {
-            font-size: 2em;
+            font-size: 1em;
             font-weight: bold;
             color: #ffd700;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
 
         .subtitle {
             color: #b8d4ff;
-            font-size: 1.1em;
+            font-size: 0.55em;
         }
 
         .controls {
@@ -152,6 +152,13 @@
             font-size: 0.8em;
         }
 
+        .team-score {
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-top: 2px;
+            opacity: 0.9;
+        }
+
         .player-list {
             display: flex;
             flex-direction: column;
@@ -191,33 +198,33 @@
         .buzz-display {
             background: rgba(0, 31, 77, 0.9);
             border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
         }
 
         .buzz-display h3 {
             color: #ffd700;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
-            font-size: 1.5em;
+            font-size: 1.2em;
         }
 
         .buzz-list {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
         }
 
         .buzz-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 18px 20px;
-            border-radius: 12px;
+            padding: 12px 15px;
+            border-radius: 10px;
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid transparent;
-            font-size: 1.1em;
+            font-size: 1em;
         }
 
         .buzz-item.first {
@@ -398,7 +405,7 @@
             color: #ffd700;
             margin-bottom: 20px;
             text-align: center;
-            font-size: 1.5em;
+            font-size: 1em;
         }
 
         .jeopardy-content {
@@ -453,7 +460,7 @@
     <div class="header">
         <div class="title">🎮 Host Controls</div>
         <div class="subtitle">Jeopardy Buzzer System</div>
-        <div id="connectionStatus" style="margin-top: 10px; padding: 5px 10px; border-radius: 5px; font-size: 0.9em;">
+        <div id="connectionStatus" style="margin-top: 5px; padding: 3px 6px; border-radius: 3px; font-size: 0.7em;">
             Connecting...
         </div>
     </div>
@@ -513,7 +520,10 @@
     <div class="players-grid">
         <div class="team-panel">
             <div class="team-header" style="background: #ff6b6b;">
-                <span>Team 1</span>
+                <div>
+                    <span>Team 1</span>
+                    <div class="team-score" id="team1Score">$0</div>
+                </div>
                 <span class="team-count" id="team1Count">0 players</span>
             </div>
             <div class="player-list" id="team1Players">
@@ -523,7 +533,10 @@
 
         <div class="team-panel">
             <div class="team-header" style="background: #4ecdc4;">
-                <span>Team 2</span>
+                <div>
+                    <span>Team 2</span>
+                    <div class="team-score" id="team2Score">$0</div>
+                </div>
                 <span class="team-count" id="team2Count">0 players</span>
             </div>
             <div class="player-list" id="team2Players">
@@ -533,7 +546,10 @@
 
         <div class="team-panel">
             <div class="team-header" style="background: #ffe66d; color: #333;">
-                <span>Team 3</span>
+                <div>
+                    <span>Team 3</span>
+                    <div class="team-score" id="team3Score">$0</div>
+                </div>
                 <span class="team-count" id="team3Count">0 players</span>
             </div>
             <div class="player-list" id="team3Players">
@@ -543,7 +559,10 @@
 
         <div class="team-panel">
             <div class="team-header" style="background: #a8e6cf; color: #333;">
-                <span>Team 4</span>
+                <div>
+                    <span>Team 4</span>
+                    <div class="team-score" id="team4Score">$0</div>
+                </div>
                 <span class="team-count" id="team4Count">0 players</span>
             </div>
             <div class="player-list" id="team4Players">
@@ -638,9 +657,14 @@
             for (let teamNum = 1; teamNum <= 4; teamNum++) {
                 const teammates = gameState && gameState.players ? getTeamMembers(teamNum) : [];
                 const countEl = document.getElementById(`team${teamNum}Count`);
+                const scoreEl = document.getElementById(`team${teamNum}Score`);
                 const playersEl = document.getElementById(`team${teamNum}Players`);
 
                 countEl.textContent = `${teammates.length} player${teammates.length !== 1 ? 's' : ''}`;
+                
+                // Update team score
+                const teamScore = gameState && gameState.teamScores ? gameState.teamScores[teamNum] || 0 : 0;
+                scoreEl.textContent = `$${teamScore.toLocaleString()}`;
 
                 if (teammates.length === 0) {
                     playersEl.innerHTML = '<div style="text-align: center; opacity: 0.5;">No players</div>';
@@ -963,6 +987,63 @@
             const displayEl = document.getElementById('jeopardyDisplay');
             displayEl.style.display = 'none';
             window.currentJeopardyData = null;
+        }
+
+        // Listen for scoring events
+        window.addEventListener('socketConnected', () => {
+            if (window.socket) {
+                window.socket.on('buzzMarkedCorrect', (data) => {
+                    console.log('Buzz marked correct:', data);
+                    showScoringNotification(data.playerName, data.team, data.pointsAdded, true);
+                    updateGameState(); // Refresh display
+                });
+
+                window.socket.on('buzzMarkedWrong', (data) => {
+                    console.log('Buzz marked wrong:', data);
+                    showScoringNotification(data.playerName, data.team, data.pointsDeducted, false);
+                    updateGameState(); // Refresh display
+                });
+            }
+        });
+
+        // Show scoring notification
+        function showScoringNotification(playerName, team, points, isCorrect) {
+            const notification = document.createElement('div');
+            const teamColor = getTeamColor(team);
+            
+            notification.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: ${isCorrect ? '#00aa00' : '#aa0000'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                font-weight: bold;
+                z-index: 1000;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                animation: slideIn 0.3s ease-out;
+                border-left: 5px solid ${teamColor};
+            `;
+            
+            const action = isCorrect ? 'gained' : 'lost';
+            const sign = isCorrect ? '+' : '-';
+            notification.innerHTML = `
+                <div>${playerName} (Team ${team})</div>
+                <div style="font-size: 1.2em;">${sign}$${points} ${action}</div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove notification after 4 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 4000);
         }
 
         // Initialize when page loads

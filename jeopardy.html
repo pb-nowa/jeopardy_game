@@ -766,7 +766,7 @@
         let finalJeopardyState = "title"; // "title", "category", "hint", "answer"
         let finalTimerInterval = null;
         let finalTimerRunning = false;
-        let teamScores = [0, 0, 0, 0]; // Scores for teams 1-4
+        let teamScores = [0, 0, 0, 0]; // Scores for teams 1-4 (will be updated from server)
         let currentQuestionValue = 0;
         let currentRound = 1;
 
@@ -1290,6 +1290,28 @@
             }, 5000);
         }
 
+        // Update team scores from server data
+        function updateTeamScoresFromServer(gameState) {
+            console.log('updateTeamScoresFromServer called with:', gameState);
+            
+            if (gameState && gameState.teamScores) {
+                console.log('Server team scores:', gameState.teamScores);
+                
+                // Update local teamScores array from server data
+                teamScores[0] = gameState.teamScores[1] || 0;
+                teamScores[1] = gameState.teamScores[2] || 0;
+                teamScores[2] = gameState.teamScores[3] || 0;
+                teamScores[3] = gameState.teamScores[4] || 0;
+                
+                console.log('Updated local team scores:', teamScores);
+                
+                // Update the display
+                updateScoreDisplay();
+            } else {
+                console.log('No teamScores found in gameState');
+            }
+        }
+
         // Simple buzz notification system
         console.log('Setting up buzz notifications...');
         
@@ -1311,10 +1333,35 @@
                 socket.on('connect', function() {
                     console.log('Jeopardy board connected to server');
                     socket.emit('identifyClient', 'jeopardy');
+                    
+                    // Request current game state
+                    setTimeout(function() {
+                        console.log('Requesting current game state...');
+                        // The server will send gameStateUpdate automatically when we identify as jeopardy
+                    }, 500);
                 });
                 
                 socket.on('disconnect', function() {
                     console.log('Jeopardy board disconnected');
+                });
+                
+                // Listen for game state updates
+                socket.on('gameStateUpdate', function(gameState) {
+                    console.log('Jeopardy board: Game state update received');
+                    console.log('Full gameState:', gameState);
+                    console.log('teamScores in gameState:', gameState ? gameState.teamScores : 'undefined');
+                    updateTeamScoresFromServer(gameState);
+                });
+                
+                // Listen for scoring events
+                socket.on('buzzMarkedCorrect', function(data) {
+                    console.log('Buzz marked correct:', data);
+                    // Scores will be updated via gameStateUpdate
+                });
+                
+                socket.on('buzzMarkedWrong', function(data) {
+                    console.log('Buzz marked wrong:', data);
+                    // Scores will be updated via gameStateUpdate
                 });
                 
                 socket.on('newBuzz', function(buzzData) {

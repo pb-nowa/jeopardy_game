@@ -24,6 +24,13 @@ let gameState = {
     buzzes: [],
     buzzingEnabled: false,
     currentQuestion: null,
+    currentQuestionValue: 0, // Current question point value
+    teamScores: {
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0
+    },
     hostControls: {
         buzzEnabled: false,
         buzzCooldown: 2000, // 2 seconds
@@ -346,27 +353,64 @@ io.on('connection', (socket) => {
             
             // Set this buzz as winner
             buzz.isWinner = true;
+            
+            // Add points to the team
+            const pointsToAdd = gameState.currentQuestionValue || 0;
+            if (gameState.teamScores[buzz.team] !== undefined) {
+                gameState.teamScores[buzz.team] += pointsToAdd;
+                console.log(`Added ${pointsToAdd} points to Team ${buzz.team}. New score: ${gameState.teamScores[buzz.team]}`);
+            }
+            
             gameState.lastUpdate = Date.now();
             
             // Disable buzzing after correct answer
             gameState.hostControls.buzzEnabled = false;
             
             broadcastGameState();
-            io.emit('buzzMarkedCorrect', { buzzId, playerName: buzz.playerName });
+            io.emit('buzzMarkedCorrect', { 
+                buzzId, 
+                playerName: buzz.playerName, 
+                team: buzz.team,
+                pointsAdded: pointsToAdd,
+                newTeamScore: gameState.teamScores[buzz.team]
+            });
             
-            console.log(`Marked correct: ${buzz.playerName}`);
+            console.log(`Marked correct: ${buzz.playerName} (Team ${buzz.team}) +${pointsToAdd} points`);
         }
     });
 
     socket.on('markBuzzWrong', (buzzId) => {
-        // Just remove this buzz, keep buzzing enabled
+        const buzz = gameState.buzzes.find(b => b.id === buzzId);
+        let pointsDeducted = 0;
+        let team = null;
+        let playerName = '';
+        
+        if (buzz) {
+            // Deduct points from the team
+            pointsDeducted = gameState.currentQuestionValue || 0;
+            team = buzz.team;
+            playerName = buzz.playerName;
+            
+            if (gameState.teamScores[buzz.team] !== undefined) {
+                gameState.teamScores[buzz.team] -= pointsDeducted;
+                console.log(`Deducted ${pointsDeducted} points from Team ${buzz.team}. New score: ${gameState.teamScores[buzz.team]}`);
+            }
+        }
+        
+        // Remove this buzz, keep buzzing enabled
         gameState.buzzes = gameState.buzzes.filter(b => b.id !== buzzId);
         gameState.lastUpdate = Date.now();
         
         broadcastGameState();
-        io.emit('buzzMarkedWrong', { buzzId });
+        io.emit('buzzMarkedWrong', { 
+            buzzId, 
+            playerName,
+            team,
+            pointsDeducted,
+            newTeamScore: team ? gameState.teamScores[team] : 0
+        });
         
-        console.log(`Buzz marked wrong and removed: ${buzzId}`);
+        console.log(`Buzz marked wrong: ${playerName} (Team ${team}) -${pointsDeducted} points`);
     });
 
     socket.on('newQuestion', () => {
@@ -389,6 +433,13 @@ io.on('connection', (socket) => {
             buzzes: [],
             buzzingEnabled: false,
             currentQuestion: null,
+            currentQuestionValue: 0,
+            teamScores: {
+                1: 0,
+                2: 0,
+                3: 0,
+                4: 0
+            },
             hostControls: {
                 buzzEnabled: false,
                 buzzCooldown: 2000,
@@ -406,6 +457,10 @@ io.on('connection', (socket) => {
     // Handle Jeopardy question display
     socket.on('jeopardyQuestion', (questionData) => {
         console.log(`Jeopardy question displayed: $${questionData.value}`);
+        
+        // Store current question value for scoring
+        gameState.currentQuestionValue = questionData.value || 0;
+        gameState.lastUpdate = Date.now();
         
         // Broadcast to all connected clients (especially host)
         io.emit('jeopardyQuestionUpdate', questionData);
