@@ -345,7 +345,6 @@
 
     <div class="actions">
         <a href="index.html" class="action-btn">🚪 Leave Game</a>
-        <button class="action-btn" onclick="location.reload()">🔄 Refresh</button>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -600,12 +599,22 @@
             try {
                 const result = await addBuzz(currentPlayer.id, currentPlayer.name, currentPlayer.team);
                 
-                // Success - UI will update via WebSocket
-                // Vibrate if supported
+                // Success - provide haptic feedback based on buzz type
                 if (navigator.vibrate) {
-                    navigator.vibrate(200);
+                    if (result.isEarlyBuzz) {
+                        // Early buzz: Error-like pattern (shorter than full error)
+                        navigator.vibrate([80, 40, 80, 40, 80]);
+                    } else {
+                        // Successful buzz: Single strong vibration
+                        navigator.vibrate(300);
+                    }
                 }
             } catch (error) {
+                // Error buzzing: Triple short vibrations (error pattern)
+                if (navigator.vibrate) {
+                    navigator.vibrate([50, 50, 50, 50, 50]);
+                }
+                
                 // Handle errors
                 let message = error.message || 'Could not buzz in';
                 if (error.reason) {

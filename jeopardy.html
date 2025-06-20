@@ -561,7 +561,7 @@
             <div id="finalBox" onclick="toggleFinal()">
                 <span id="finalText">Final Jeopardy</span>
             </div>
-            <div class="final-timer-section">
+            <div class="final-timer-section" id="finalTimerSection" style="display: none;">
                 <button class="timer-btn" id="finalTimerBtn" onclick="toggleFinalTimer()">Start 30-Second Timer</button>
                 <button class="timer-btn" id="finalStopBtn" onclick="stopFinalTimer()" style="background-color: #cc0000; display: none;">Stop Timer</button>
             <div class="progress-bar" id="finalProgressBar"></div>
@@ -752,6 +752,7 @@
                 }
             },
             finalJeopardy: {
+                category: "ANCIENT WONDERS",
                 hint: "This ancient wonder of the world is the only one still standing today.",
                 answer: "What is the Great Pyramid of Giza?"
             }
@@ -762,7 +763,7 @@
         const modalContent = document.getElementById("modalContent");
         let currentContent = "";
         let showingAnswer = false;
-        let finalJeopardyState = "title"; // "title", "hint", "answer"
+        let finalJeopardyState = "title"; // "title", "category", "hint", "answer"
         let finalTimerInterval = null;
         let finalTimerRunning = false;
         let teamScores = [0, 0, 0, 0]; // Scores for teams 1-4
@@ -899,16 +900,28 @@
 
         function toggleFinal() {
             const finalText = document.getElementById("finalText");
+            const timerSection = document.getElementById("finalTimerSection");
             
             if (finalJeopardyState === "title") {
+                finalText.innerHTML = "Final Jeopardy Category:<br><br>" + gameData.finalJeopardy.category;
+                finalJeopardyState = "category";
+                timerSection.style.display = "none";
+            } else if (finalJeopardyState === "category") {
                 finalText.innerHTML = "Final Jeopardy Hint:<br><br>" + gameData.finalJeopardy.hint;
                 finalJeopardyState = "hint";
+                timerSection.style.display = "block";
+                // Automatically start the 30-second timer
+                if (!finalTimerRunning) {
+                    startFinalTimer();
+                }
             } else if (finalJeopardyState === "hint") {
                 finalText.innerHTML = "Final Jeopardy Answer:<br><br>" + gameData.finalJeopardy.answer;
                 finalJeopardyState = "answer";
+                timerSection.style.display = "none";
             } else {
                 finalText.innerHTML = "Final Jeopardy";
                 finalJeopardyState = "title";
+                timerSection.style.display = "none";
                 // Stop timer if running when resetting
                 if (finalTimerRunning) {
                     stopFinalTimer();
@@ -1227,7 +1240,7 @@
                 }
             }
             
-            if (!data.finalJeopardy.hint || !data.finalJeopardy.answer) return false;
+            if (!data.finalJeopardy.category || !data.finalJeopardy.hint || !data.finalJeopardy.answer) return false;
             
             return true;
         }
