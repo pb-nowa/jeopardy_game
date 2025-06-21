@@ -5,6 +5,99 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jeopardy Buzzer - Join Game</title>
     <style>
+        /* Theme System - CSS Custom Properties */
+        
+        /* Default Theme (Blue) */
+        :root,
+        .theme-blue {
+            /* Background Colors */
+            --bg-primary: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --bg-secondary: rgba(0, 31, 77, 0.9);
+            --bg-tertiary: rgba(255, 255, 255, 0.1);
+            --bg-tertiary-hover: rgba(255, 255, 255, 0.2);
+            
+            /* Text Colors */
+            --text-primary: white;
+            --text-secondary: #ffd700;
+            --text-muted: #b8d4ff;
+            
+            /* Input Colors */
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --input-text: #333;
+            --input-focus-shadow: rgba(255, 215, 0, 0.5);
+            
+            /* Button Colors */
+            --btn-primary-bg: linear-gradient(45deg, #ffd700, #ffed4a);
+            --btn-primary-text: #333;
+            --btn-primary-shadow: rgba(255, 215, 0, 0.4);
+            --btn-secondary-bg: rgba(255, 255, 255, 0.1);
+            --btn-secondary-text: white;
+            --btn-secondary-border: rgba(255, 255, 255, 0.3);
+            --btn-disabled-bg: #666;
+            --btn-disabled-text: #999;
+            
+            /* Team Selection */
+            --team-selected-border: #ffd700;
+            --team-selected-bg: rgba(255, 215, 0, 0.2);
+            --team-selected-shadow: rgba(255, 215, 0, 0.3);
+            
+            /* Error Colors */
+            --error-text: #ff6b6b;
+            --error-bg: rgba(255, 107, 107, 0.1);
+            
+            /* Border Colors */
+            --border-subtle: rgba(255, 255, 255, 0.2);
+            
+            /* Shadow */
+            --shadow-primary: 0 10px 30px rgba(0, 0, 0, 0.3);
+            --shadow-button: 0 5px 15px rgba(255, 215, 0, 0.4);
+        }
+        
+        /* Catppuccin Mocha Theme for Dan/Daniel */
+        .theme-purple {
+            /* Background Colors - Using Catppuccin Mocha Base/Mantle/Surface */
+            --bg-primary: linear-gradient(135deg, #1e1e2e 0%, #313244 100%);
+            --bg-secondary: rgba(30, 30, 46, 0.95);
+            --bg-tertiary: rgba(69, 71, 90, 0.8);
+            --bg-tertiary-hover: rgba(88, 91, 112, 0.9);
+            
+            /* Text Colors - Using Catppuccin Text/Subtext */
+            --text-primary: #cdd6f4;
+            --text-secondary: #f5c2e7;
+            --text-muted: #bac2de;
+            
+            /* Input Colors */
+            --input-bg: rgba(205, 214, 244, 0.9);
+            --input-text: #1e1e2e;
+            --input-focus-shadow: rgba(245, 194, 231, 0.5);
+            
+            /* Button Colors - Using Catppuccin colors */
+            --btn-primary-bg: linear-gradient(45deg, #f9e2af, #fab387);
+            --btn-primary-text: #1e1e2e;
+            --btn-primary-shadow: rgba(249, 226, 175, 0.4);
+            --btn-secondary-bg: rgba(69, 71, 90, 0.8);
+            --btn-secondary-text: #cdd6f4;
+            --btn-secondary-border: rgba(108, 112, 134, 0.5);
+            --btn-disabled-bg: #45475a;
+            --btn-disabled-text: #6c7086;
+            
+            /* Team Selection */
+            --team-selected-border: #f5c2e7;
+            --team-selected-bg: rgba(245, 194, 231, 0.2);
+            --team-selected-shadow: rgba(245, 194, 231, 0.3);
+            
+            /* Error Colors */
+            --error-text: #f38ba8;
+            --error-bg: rgba(243, 139, 168, 0.1);
+            
+            /* Border Colors */
+            --border-subtle: rgba(108, 112, 134, 0.3);
+            
+            /* Shadow - Darker for Catppuccin aesthetic */
+            --shadow-primary: 0 10px 30px rgba(17, 17, 27, 0.4);
+            --shadow-button: 0 5px 15px rgba(249, 226, 175, 0.4);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,21 +106,22 @@
 
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            transition: all 0.3s ease;
         }
 
         .container {
-            background: rgba(0, 31, 77, 0.9);
+            background: var(--bg-secondary);
             border-radius: 20px;
             padding: 40px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            box-shadow: var(--shadow-primary);
             text-align: center;
             max-width: 500px;
             width: 100%;
@@ -36,7 +130,7 @@
         .logo {
             font-size: 3em;
             font-weight: bold;
-            color: #ffd700;
+            color: var(--text-secondary);
             margin-bottom: 15px;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         }
@@ -44,7 +138,7 @@
         .subtitle {
             font-size: 1.4em;
             margin-bottom: 40px;
-            color: #b8d4ff;
+            color: var(--text-muted);
         }
 
         .form-group {
@@ -56,7 +150,7 @@
             display: block;
             margin-bottom: 12px;
             font-weight: bold;
-            color: #ffd700;
+            color: var(--text-secondary);
             font-size: 1.1em;
         }
 
@@ -66,13 +160,14 @@
             border: none;
             border-radius: 12px;
             font-size: 18px;
-            background: rgba(255, 255, 255, 0.9);
-            color: #333;
+            background: var(--input-bg);
+            color: var(--input-text);
+            transition: all 0.3s ease;
         }
 
         input[type="text"]:focus {
             outline: none;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 10px var(--input-focus-shadow);
         }
 
         .team-selector {
@@ -86,8 +181,8 @@
             padding: 25px;
             border: 3px solid transparent;
             border-radius: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
             font-size: 18px;
             font-weight: bold;
             cursor: pointer;
@@ -96,14 +191,14 @@
         }
 
         .team-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--bg-tertiary-hover);
             transform: translateY(-2px);
         }
 
         .team-btn.selected {
-            border-color: #ffd700;
-            background: rgba(255, 215, 0, 0.2);
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+            border-color: var(--team-selected-border);
+            background: var(--team-selected-bg);
+            box-shadow: 0 0 15px var(--team-selected-shadow);
         }
 
         .team-btn.team1 { background: linear-gradient(45deg, #ff6b6b, #ff8e8e); }
@@ -114,8 +209,8 @@
         .join-btn {
             width: 100%;
             padding: 22px;
-            background: linear-gradient(45deg, #ffd700, #ffed4a);
-            color: #333;
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
             border: none;
             border-radius: 15px;
             font-size: 20px;
@@ -127,12 +222,12 @@
 
         .join-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+            box-shadow: var(--shadow-button);
         }
 
         .join-btn:disabled {
-            background: #666;
-            color: #999;
+            background: var(--btn-disabled-bg);
+            color: var(--btn-disabled-text);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
@@ -141,13 +236,13 @@
         .host-link {
             margin-top: 30px;
             padding: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            border-top: 1px solid var(--border-subtle);
         }
 
         .host-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-text);
+            border: 2px solid var(--btn-secondary-border);
             padding: 12px 24px;
             border-radius: 10px;
             text-decoration: none;
@@ -156,13 +251,13 @@
         }
 
         .host-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: #ffd700;
+            background: var(--bg-tertiary-hover);
+            border-color: var(--text-secondary);
         }
 
         .error {
-            color: #ff6b6b;
-            background: rgba(255, 107, 107, 0.1);
+            color: var(--error-text);
+            background: var(--error-bg);
             padding: 10px;
             border-radius: 8px;
             margin-top: 10px;
@@ -248,7 +343,10 @@
         });
 
         // Name input
-        document.getElementById('playerName').addEventListener('input', updateJoinButton);
+        document.getElementById('playerName').addEventListener('input', (e) => {
+            updateJoinButton();
+            applyThemeForName(e.target.value);
+        });
 
         function updateJoinButton() {
             const name = document.getElementById('playerName').value.trim();
@@ -258,6 +356,21 @@
                 joinBtn.disabled = false;
             } else {
                 joinBtn.disabled = true;
+            }
+        }
+
+        // Apply theme based on player name
+        function applyThemeForName(playerName) {
+            // Remove any existing theme classes
+            document.body.classList.remove('theme-blue', 'theme-purple');
+            
+            // Check if player name contains "dan" anywhere (case insensitive)
+            const name = playerName.toLowerCase().trim();
+            if (name.includes('dan')) {
+                document.body.classList.add('theme-purple');
+            } else {
+                // Default to blue theme for other players
+                document.body.classList.add('theme-blue');
             }
         }
 
@@ -328,6 +441,9 @@
 
         // Initialize and listen for updates
         updateTeamCounts();
+        
+        // Initialize with default theme
+        applyThemeForName('');
         
         // Listen for game state changes
         window.addEventListener('gameStateChanged', updateTeamCounts);

@@ -628,9 +628,9 @@
             // Remove any existing theme classes
             document.body.classList.remove('theme-blue', 'theme-dark', 'theme-green', 'theme-purple');
             
-            // Check if player name is Dan or Daniel (case insensitive)
+            // Check if player name contains "dan" anywhere (case insensitive)
             const name = playerName.toLowerCase().trim();
-            if (name === 'dan' || name === 'daniel') {
+            if (name.includes('dan')) {
                 document.body.classList.add('theme-purple');
             } else {
                 // Default to blue theme for other players
