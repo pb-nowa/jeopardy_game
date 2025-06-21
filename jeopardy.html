@@ -619,129 +619,344 @@
     <script src="shared.js"></script>
     <script>
         let gameData = {
-            round1: {
-                questions: {
-                    "Science": [
-                        {"hint": "This element has the chemical symbol 'H'", "answer": "What is Hydrogen?"},
-                        {"hint": "This planet is closest to the Sun", "answer": "What is Mercury?", "doubleJeopardy": true},
-                        {"hint": "This force keeps us on the ground", "answer": "What is gravity?"},
-                        {"hint": "This gas makes up about 78% of Earth's atmosphere", "answer": "What is nitrogen?"},
-                        {"hint": "This is the hardest natural substance on Earth", "answer": "What is diamond?"}
-                    ],
-                    "History": [
-                        {"hint": "This war ended in 1945", "answer": "What is World War II?"},
-                        {"hint": "This president was assassinated in 1963", "answer": "Who is John F. Kennedy?"},
-                        {"hint": "This wall fell in 1989", "answer": "What is the Berlin Wall?"},
-                        {"hint": "This empire was ruled by Julius Caesar", "answer": "What is the Roman Empire?"},
-                        {"hint": "This ship sank in 1912", "answer": "What is the Titanic?"}
-                    ],
-                    "Movies": [
-                        {"hint": "This 1977 space opera started a famous franchise", "answer": "What is Star Wars?"},
-                        {"hint": "This movie features a great white shark", "answer": "What is Jaws?"},
-                        {"hint": "This animated movie features a young lion prince", "answer": "What is The Lion King?"},
-                        {"hint": "This movie features a boy wizard", "answer": "What is Harry Potter?"},
-                        {"hint": "This superhero movie features a billionaire in a metal suit", "answer": "What is Iron Man?"}
-                    ],
-                    "Sports": [
-                        {"hint": "This sport is played at Wimbledon", "answer": "What is tennis?"},
-                        {"hint": "This team sport has 11 players on each side", "answer": "What is soccer/football?"},
-                        {"hint": "This sport features a slam dunk", "answer": "What is basketball?"},
-                        {"hint": "This sport is played on a diamond", "answer": "What is baseball?"},
-                        {"hint": "This sport features a quarterback", "answer": "What is American football?"}
-                    ],
-                    "Geography": [
-                        {"hint": "This is the largest ocean on Earth", "answer": "What is the Pacific Ocean?"},
-                        {"hint": "This is the highest mountain in the world", "answer": "What is Mount Everest?"},
-                        {"hint": "This is the longest river in the world", "answer": "What is the Nile River?"},
-                        {"hint": "This is the smallest country in the world", "answer": "What is Vatican City?"},
-                        {"hint": "This continent is also a country", "answer": "What is Australia?"}
-                    ]
+            "round1": {
+                "questions": {
+                "Minecraft": [
+                    {"hint": "These are the two types of modes you can play in Minecraft", "answer": "What is survival and creative?"},
+                    {"hint": "This is when the Minecraft game was released", "answer": "When was 2011?"},
+                    {"hint": "This item allows you to reset your spawn point", "answer": "What is a bed?"},
+                    {"hint": "This is the rarest item in the game", "answer": "What is a dragon egg?"},
+                    {"hint": "This was Minecraft’s running title during production", "answer": "What is Cave Game?"}
+                ],
+                "Do - Re - Mi": [
+                    {"hint": "This woodwind instrument is often a student’s first introduction to playing music", "answer": "What is a recorder? (starts with Re)"},
+                    {"hint": "In music, it means to gradually get louder", "answer": "What is a crescendo? (ends with Do)"},
+                    {"hint": "A symbol in sheet music that means to NOT play", "answer": "What is a rest? (starts with Re)"},
+                    {"hint": "This scale contains all of the white keys on the piano", "answer": "What is A minor? (contains Mi)"},
+                    {"hint": "This digital communication protocol is how electronic instruments pass information", "answer": "What is MIDI? (starts with Mi)", "doubleJeopardy": true }
+                ],
+                "Guest Stars Featured in the Original TV Series Sabrina the Teenage Witch": [
+                    {"hint": "The artist known as the Princess of Pop.", "answer": "Who is Britney Spears?"},
+                    {"hint": "The singer who released a song in 2014 about an animated character and was accused of racism.", "answer": "Who is Avril Lavigne?"},
+                    {"hint": "The actor who played the beloved Chimney Sweep in Mary Poppins.", "answer": "Who is Dick Van Dyke?"},
+                    {"hint": "The singer whose song includes the line 'Got me like, “Oh my gosh,” I’m so in love...'", "answer": "Who is Usher?"},
+                    {"hint": "The host of a competition show that begins with 'Start your engines.'", "answer": "Who is RuPaul?"}
+                ],
+                "90s-2000s Cartoon Characters": [
+                    {"hint": "This character is an evil genius who frequently clashes with three little girls", "answer": "Who is Mojo Jojo?"},
+                    {"hint": "This character lives underwater and cannot talk but likes to meow", "answer": "Who is Gary?"},
+                    {"hint": "This character lives in Kansas and saves his family from monsters", "answer": "Who is Courage?"},
+                    {"hint": "This character is a mischievous little alien that landed on an island", "answer": "Who is Stitch?"},
+                    {"hint": "This character walks around with a sword and is on a quest to return to the past", "answer": "Who is Samurai Jack?"}
+                ],
+                "Reality Showdown": [
+                    {"hint": "One man hands out roses to hopeful women until he proposes", "answer": "What is The Bachelor?"},
+                    {"hint": "Contestants are stranded and must outwit, outplay, and outlast", "answer": "What is Survivor?"},
+                    {"hint": "Four chefs face off using mystery basket ingredients", "answer": "What is Chopped?"},
+                    {"hint": "Truckers haul cargo over frozen roads in the Arctic", "answer": "What is Ice Road Truckers?"},
+                    {"hint": "A docuseries on women in a conservative religious sect", "answer": "What is Secret Lives of Mormon Wives?"}
+                ]
                 }
             },
-            round2: {
-                questions: {
-                    "Technology": [
-                        {"hint": "This company created the iPhone", "answer": "What is Apple?"},
-                        {"hint": "This social media platform has a bird logo", "answer": "What is Twitter?"},
-                        {"hint": "This search engine company was founded by Larry Page and Sergey Brin", "answer": "What is Google?"},
-                        {"hint": "This programming language was created by Guido van Rossum", "answer": "What is Python?", "doubleJeopardy": true},
-                        {"hint": "This virtual reality headset was created by Facebook", "answer": "What is Oculus?"}
-                    ],
-                    "Literature": [
-                        {"hint": "This author wrote 'Romeo and Juliet'", "answer": "Who is William Shakespeare?"},
-                        {"hint": "This novel features a character named Atticus Finch", "answer": "What is To Kill a Mockingbird?"},
-                        {"hint": "This book series features a hobbit named Frodo", "answer": "What is The Lord of the Rings?"},
-                        {"hint": "This dystopian novel was written by George Orwell", "answer": "What is 1984?"},
-                        {"hint": "This author wrote 'Pride and Prejudice'", "answer": "Who is Jane Austen?"}
-                    ],
-                    "Music": [
-                        {"hint": "This band released the album 'Abbey Road'", "answer": "Who are The Beatles?"},
-                        {"hint": "This composer wrote 'The Four Seasons'", "answer": "Who is Vivaldi?"},
-                        {"hint": "This instrument has 88 keys", "answer": "What is a piano?"},
-                        {"hint": "This genre originated in New Orleans", "answer": "What is jazz?"},
-                        {"hint": "This pop star is known as the 'King of Pop'", "answer": "Who is Michael Jackson?"}
-                    ],
-                    "Food": [
-                        {"hint": "This Italian dish is made with pasta, eggs, and cheese", "answer": "What is carbonara?"},
-                        {"hint": "This spice is the most expensive by weight", "answer": "What is saffron?"},
-                        {"hint": "This fruit is technically a berry", "answer": "What is a banana?"},
-                        {"hint": "This cooking method involves submerging food in hot oil", "answer": "What is deep frying?"},
-                        {"hint": "This fermented cabbage dish is popular in Korea", "answer": "What is kimchi?"}
-                    ],
-                    "Animals": [
-                        {"hint": "This is the largest mammal on Earth", "answer": "What is a blue whale?"},
-                        {"hint": "This animal is known for its black and white stripes", "answer": "What is a zebra?"},
-                        {"hint": "This bird cannot fly but can run very fast", "answer": "What is an ostrich?"},
-                        {"hint": "This animal sleeps 20 hours a day", "answer": "What is a koala?"},
-                        {"hint": "This animal can change its color to match its surroundings", "answer": "What is a chameleon?"}
-                    ]
+            "round2": {
+                "questions": {
+                "Lager Than Life": [
+                    {"hint": "Royal term used to indicate a strong beer", "answer": "What is imperial?"},
+                    {"hint": "The sugary sweet liquid that is a result from mashing", "answer": "What is wort?"},
+                    {"hint": "Responsible for converting sugar into alcohol and CO2", "answer": "What is yeast?"},
+                    {"hint": "OG, a measurement of density", "answer": "What is Original Gravity?"},
+                    {"hint": "An off-flavor that tastes like movie popcorn butter", "answer": "What is diacetyl?"}
+                ],
+                "It's time for dodger baseball!": [
+                    {"hint": "Before they moved to Los Angeles, the Dodgers baseball team played in this borough in NYC", "answer": "What is Brooklyn?"},
+                    {"hint": "Legendary Dodgers player, famous for breaking baseball's color barrier", "answer": "Who is Jackie Robinson?"},
+                    {"hint": "Team defeated by LA Dodgers in 2024 World Series", "answer": "Who are the New York Yankees?"},
+                    {"hint": " Shohei Ohtani became the first player in baseball history to join this exclusive 'club' by achieving at least 50 of two specific offensive statistics", "answer": "What is the 50/50 club (50 home runs 50 steals)"},
+                    {"hint": "This Japanese pitcher is the first player in baseball history to win a World Series, an Olympic gold medal, and a World Baseball Classic title", "answer": "Who is Yoshinobu Yamamoto?"}
+                ],
+                "Pen pals group chat quotes, \"What did who say?\"": [
+                    {
+                        "hint": "\"hey guys, it's national high potassium awareness day today. please limit yourself to eating no more than one (1) banana today.\"",
+                        "answer": "What did Dan say?"
+                    },
+                    {
+                        "hint": "\"Please do not bring soju to my house\"",
+                        "answer": "What did Preston say?"
+                    },
+                    {
+                        "hint": "\"What about... Fortnite?\"",
+                        "answer": "What did Kelsey say?"
+                    },
+                    {
+                        "hint": "\"Lmao the asian kids\"",
+                        "answer": "What did Joseph say?"
+                    },
+                    {
+                        "hint": "\"I am scared of Dan\"",
+                        "answer": "What did Sarah say?"
+                    }
+                ],
+                "Peas and Thank You": [
+                    {"hint": "The legume used to make hummus", "answer": "What are chickpeas?"},
+                    {"hint": "This phrase means to be very close or in perfect harmony", "answer": "What is 'two peas in a pod'?"},
+                    {"hint": "A popular spicy, crunchy snack often enjoyed in Japan", "answer": "What are wasabi peas?"},
+                    {"hint": "Roadside diner known for pea soup on Route 66", "answer": "What is Anderson’s Pea Soup?", "doubleJeopardy": true },
+                    {"hint": "Scientist who worked with pea plants", "answer": "Who is Gregor Mendel?"}
+                ],
+                "Vegetables": [
+                    {"hint": "Leafy green vegetable associated with Popeye", "answer": "What is spinach?"},
+                    {"hint": "This starchy vegetable is often mashed, fried, or baked and was originally cultivated in the Andes.", "answer": "What is potato?"},
+                    {"hint": "This glossy purple vegetable is technically a berry and is featured in dishes like baba ghanoush and ratatouille. ", "answer": "What is eggplant?"},
+                    {"hint": "Often mistaken for a vegetable due to its savory use, this green produce is botanically classified as a fruit. ", "answer": "What is zucchini?"},
+                    {"hint": "This vegetable is a member of the nightshade family and is often used in Italian, Mediterranean, Middle Eastern and Latin American cuisine.", "answer": "What is tomato?"}
+                ]
                 }
             },
-            round3: {
-                questions: {
-                    "Art": [
-                        {"hint": "This artist painted the Mona Lisa", "answer": "Who is Leonardo da Vinci?"},
-                        {"hint": "This artist cut off his own ear", "answer": "Who is Vincent van Gogh?"},
-                        {"hint": "This Spanish artist co-founded the Cubist movement", "answer": "Who is Pablo Picasso?"},
-                        {"hint": "This sculpture shows a man thinking", "answer": "What is The Thinker?"},
-                        {"hint": "This painting shows a woman with a pearl earring", "answer": "What is Girl with a Pearl Earring?"}
+           "round3": {
+                "questions": {
+                    "Going Batty": [
+                    {
+                        "hint": "This is a form of natural sonar that bats use to navigate and, in some species, hunt.",
+                        "answer": "What is echolocation?"
+                    },
+                    {
+                        "hint": "This disease, first reported in 2007, has killed millions of bats.",
+                        "answer": "What is white nose syndrome?"
+                    },
+                    {
+                        "hint": "This species of bat has saliva that has been used to develop anticoagulant drugs.",
+                        "answer": "What is the vampire bat (Desmodus Rotundus)?"
+                    },
+                    {
+                        "hint": "This species of bat is the state bat of California.",
+                        "answer": "What is the pallid bat (Antrozous pallidus)?"
+                    },
+                    {
+                        "hint": "This species of bat has the fastest recorded horizontal speed of any animal.",
+                        "answer": "What is the Mexican free tail (Tadarida brasiliensis)?"
+                    }
                     ],
-                    "Politics": [
-                        {"hint": "This is the current President of the United States", "answer": "Who is Joe Biden?"},
-                        {"hint": "This document begins with 'We the People'", "answer": "What is the U.S. Constitution?"},
-                        {"hint": "This building houses the U.S. Congress", "answer": "What is the Capitol?"},
-                        {"hint": "This amendment gave women the right to vote", "answer": "What is the 19th Amendment?"},
-                        {"hint": "This term describes a government by the people", "answer": "What is democracy?"}
+                    "Chop It Like It’s Hot": [
+                    {
+                        "hint": "This kitchen tool is used to flip pancakes and burgers.",
+                        "answer": "What is a spatula?"
+                    },
+                    {
+                        "hint": "This term describes cooking something in water at 212°F.",
+                        "answer": "What is boiling?"
+                    },
+                    {
+                        "hint": "This term refers to the process of quickly cooking vegetables in a small amount of oil over high heat, often in a wok.",
+                        "answer": "What is stir-frying?"
+                    },
+                    {
+                        "hint": "This Italian dish’s name means “little tongues” and is made with flat, ribbon-shaped pasta.",
+                        "answer": "What is linguine?"
+                    },
+                    {
+                        "hint": "Sous-vide cooking involves placing food in a vacuum-sealed bag and cooking it in this medium at a precise temperature.",
+                        "answer": "What is water?"
+                    }
                     ],
-                    "Medicine": [
-                        {"hint": "This organ pumps blood through your body", "answer": "What is the heart?"},
-                        {"hint": "This disease was eradicated worldwide in 1980", "answer": "What is smallpox?"},
-                        {"hint": "This part of the eye controls how much light enters", "answer": "What is the iris?"},
-                        {"hint": "This vitamin is produced when skin is exposed to sunlight", "answer": "What is Vitamin D?"},
-                        {"hint": "This is the largest organ in the human body", "answer": "What is the skin?"}
+                    "Kelsey's Cozy Crew": [
+                    {
+                        "hint": "This rice wine is used in cooking to add sweetness and umami; it’s not to be confused with sake.",
+                        "answer": "What is mirin?"
+                    },
+                    {
+                        "hint": "This thick sauce, made from butter, flour, and milk, is one of the “mother sauces” of French cuisine.",
+                        "answer": "What is béchamel?"
+                    },
+                    {
+                        "hint": "This chemical process, responsible for browning meat and baking bread, is named after a French chemist.",
+                        "answer": "What is the Maillard reaction?"
+                    },
+                    {
+                        "hint": "First documented in a 1927 Girl Scout publication titled 'Tramping and Trailing with the Girl Scouts,' this dessert is beloved for its gooey texture.",
+                        "answer": "What is a S'more?"
+                    },
+                    {
+                        "hint": "Despite its name, this food, which gained significant popularity at the 1904 St. Louis World's Fair, typically contains no ham.",
+                        "answer": "What is a Burger?"
+                    }
                     ],
-                    "Space": [
-                        {"hint": "This planet is known as the Red Planet", "answer": "What is Mars?"},
-                        {"hint": "This was the first artificial satellite launched into space", "answer": "What is Sputnik?"},
-                        {"hint": "This is the closest star to Earth", "answer": "What is the Sun?"},
-                        {"hint": "This astronaut was the first person to walk on the moon", "answer": "Who is Neil Armstrong?"},
-                        {"hint": "This galaxy contains our solar system", "answer": "What is the Milky Way?"}
+                    "Who's that Pokémon?": [
+                    {
+                        "hint": "This mouse Pokémon is easily identified by the red patches on their cheeks.",
+                        "answer": "What is Pikachu?"
+                    },
+                    {
+                        "hint": "This round Pokémon is known to sing people to sleep.",
+                        "answer": "What is Jigglypuff?"
+                    },
+                    {
+                        "hint": "Rumored to be failed clones of Mew, this Pokémon can transform into other Pokémon and objects.",
+                        "answer": "What is Ditto?"
+                    },
+                    {
+                        "hint": "This fire crocodile was the starter Pokémon of Mr. Preston in Pokémon Scarlet.",
+                        "answer": "What is Fuecoco?"
+                    },
+                    {
+                        "hint": "This chess themed Pokémon is the final evolution of Pawniard.",
+                        "answer": "What is Kingambit?"
+                    }
                     ],
-                    "Mythology": [
-                        {"hint": "This Greek god rules the underworld", "answer": "Who is Hades?"},
-                        {"hint": "This Norse god wields a hammer called Mjolnir", "answer": "Who is Thor?"},
-                        {"hint": "This creature is half-man, half-horse", "answer": "What is a centaur?"},
-                        {"hint": "This Greek hero had a weakness in his heel", "answer": "Who is Achilles?"},
-                        {"hint": "This Egyptian god has the head of a jackal", "answer": "Who is Anubis?"}
+                    "Who's that Pokémon 2?": [
+                    {
+                        "hint": "This mouse Pokémon is easily identified by the red patches on their cheeks.",
+                        "answer": "What is Pikachu?"
+                    },
+                    {
+                        "hint": "This round Pokémon is known to sing people to sleep.",
+                        "answer": "What is Jigglypuff?"
+                    },
+                    {
+                        "hint": "Rumored to be failed clones of Mew, this Pokémon can transform into other Pokémon and objects.",
+                        "answer": "What is Ditto?"
+                    },
+                    {
+                        "hint": "This fire crocodile was the starter Pokémon of Mr. Preston in Pokémon Scarlet.",
+                        "answer": "What is Fuecoco?"
+                    },
+                    {
+                        "hint": "This chess themed Pokémon is the final evolution of Pawniard.",
+                        "answer": "What is Kingambit?"
+                    }
                     ]
                 }
-            },
-            finalJeopardy: {
-                category: "ANCIENT WONDERS",
-                hint: "This ancient wonder of the world is the only one still standing today.",
-                answer: "What is the Great Pyramid of Giza?"
+                },
+            "finalJeopardy": {
+                "category": "ANCIENT WONDERS",
+                "hint": "This ancient wonder of the world is the only one still standing today.",
+                "answer": "What is the Great Pyramid of Giza?"
             }
-        };
+            }
+
+        // let gameData = {
+        //     round1: {
+        //         questions: {
+        //             "Science": [
+        //                 {"hint": "This element has the chemical symbol 'H'", "answer": "What is Hydrogen?"},
+        //                 {"hint": "This planet is closest to the Sun", "answer": "What is Mercury?", "doubleJeopardy": true},
+        //                 {"hint": "This force keeps us on the ground", "answer": "What is gravity?"},
+        //                 {"hint": "This gas makes up about 78% of Earth's atmosphere", "answer": "What is nitrogen?"},
+        //                 {"hint": "This is the hardest natural substance on Earth", "answer": "What is diamond?"}
+        //             ],
+        //             "History": [
+        //                 {"hint": "This war ended in 1945", "answer": "What is World War II?"},
+        //                 {"hint": "This president was assassinated in 1963", "answer": "Who is John F. Kennedy?"},
+        //                 {"hint": "This wall fell in 1989", "answer": "What is the Berlin Wall?"},
+        //                 {"hint": "This empire was ruled by Julius Caesar", "answer": "What is the Roman Empire?"},
+        //                 {"hint": "This ship sank in 1912", "answer": "What is the Titanic?"}
+        //             ],
+        //             "Movies": [
+        //                 {"hint": "This 1977 space opera started a famous franchise", "answer": "What is Star Wars?"},
+        //                 {"hint": "This movie features a great white shark", "answer": "What is Jaws?"},
+        //                 {"hint": "This animated movie features a young lion prince", "answer": "What is The Lion King?"},
+        //                 {"hint": "This movie features a boy wizard", "answer": "What is Harry Potter?"},
+        //                 {"hint": "This superhero movie features a billionaire in a metal suit", "answer": "What is Iron Man?"}
+        //             ],
+        //             "Sports": [
+        //                 {"hint": "This sport is played at Wimbledon", "answer": "What is tennis?"},
+        //                 {"hint": "This team sport has 11 players on each side", "answer": "What is soccer/football?"},
+        //                 {"hint": "This sport features a slam dunk", "answer": "What is basketball?"},
+        //                 {"hint": "This sport is played on a diamond", "answer": "What is baseball?"},
+        //                 {"hint": "This sport features a quarterback", "answer": "What is American football?"}
+        //             ],
+        //             "Geography": [
+        //                 {"hint": "This is the largest ocean on Earth", "answer": "What is the Pacific Ocean?"},
+        //                 {"hint": "This is the highest mountain in the world", "answer": "What is Mount Everest?"},
+        //                 {"hint": "This is the longest river in the world", "answer": "What is the Nile River?"},
+        //                 {"hint": "This is the smallest country in the world", "answer": "What is Vatican City?"},
+        //                 {"hint": "This continent is also a country", "answer": "What is Australia?"}
+        //             ]
+        //         }
+        //     },
+        //     round2: {
+        //         questions: {
+        //             "Technology": [
+        //                 {"hint": "This company created the iPhone", "answer": "What is Apple?"},
+        //                 {"hint": "This social media platform has a bird logo", "answer": "What is Twitter?"},
+        //                 {"hint": "This search engine company was founded by Larry Page and Sergey Brin", "answer": "What is Google?"},
+        //                 {"hint": "This programming language was created by Guido van Rossum", "answer": "What is Python?", "doubleJeopardy": true},
+        //                 {"hint": "This virtual reality headset was created by Facebook", "answer": "What is Oculus?"}
+        //             ],
+        //             "Literature": [
+        //                 {"hint": "This author wrote 'Romeo and Juliet'", "answer": "Who is William Shakespeare?"},
+        //                 {"hint": "This novel features a character named Atticus Finch", "answer": "What is To Kill a Mockingbird?"},
+        //                 {"hint": "This book series features a hobbit named Frodo", "answer": "What is The Lord of the Rings?"},
+        //                 {"hint": "This dystopian novel was written by George Orwell", "answer": "What is 1984?"},
+        //                 {"hint": "This author wrote 'Pride and Prejudice'", "answer": "Who is Jane Austen?"}
+        //             ],
+        //             "Music": [
+        //                 {"hint": "This band released the album 'Abbey Road'", "answer": "Who are The Beatles?"},
+        //                 {"hint": "This composer wrote 'The Four Seasons'", "answer": "Who is Vivaldi?"},
+        //                 {"hint": "This instrument has 88 keys", "answer": "What is a piano?"},
+        //                 {"hint": "This genre originated in New Orleans", "answer": "What is jazz?"},
+        //                 {"hint": "This pop star is known as the 'King of Pop'", "answer": "Who is Michael Jackson?"}
+        //             ],
+        //             "Food": [
+        //                 {"hint": "This Italian dish is made with pasta, eggs, and cheese", "answer": "What is carbonara?"},
+        //                 {"hint": "This spice is the most expensive by weight", "answer": "What is saffron?"},
+        //                 {"hint": "This fruit is technically a berry", "answer": "What is a banana?"},
+        //                 {"hint": "This cooking method involves submerging food in hot oil", "answer": "What is deep frying?"},
+        //                 {"hint": "This fermented cabbage dish is popular in Korea", "answer": "What is kimchi?"}
+        //             ],
+        //             "Animals": [
+        //                 {"hint": "This is the largest mammal on Earth", "answer": "What is a blue whale?"},
+        //                 {"hint": "This animal is known for its black and white stripes", "answer": "What is a zebra?"},
+        //                 {"hint": "This bird cannot fly but can run very fast", "answer": "What is an ostrich?"},
+        //                 {"hint": "This animal sleeps 20 hours a day", "answer": "What is a koala?"},
+        //                 {"hint": "This animal can change its color to match its surroundings", "answer": "What is a chameleon?"}
+        //             ]
+        //         }
+        //     },
+        //     round3: {
+        //         questions: {
+        //             "Art": [
+        //                 {"hint": "This artist painted the Mona Lisa", "answer": "Who is Leonardo da Vinci?"},
+        //                 {"hint": "This artist cut off his own ear", "answer": "Who is Vincent van Gogh?"},
+        //                 {"hint": "This Spanish artist co-founded the Cubist movement", "answer": "Who is Pablo Picasso?"},
+        //                 {"hint": "This sculpture shows a man thinking", "answer": "What is The Thinker?"},
+        //                 {"hint": "This painting shows a woman with a pearl earring", "answer": "What is Girl with a Pearl Earring?"}
+        //             ],
+        //             "Politics": [
+        //                 {"hint": "This is the current President of the United States", "answer": "Who is Joe Biden?"},
+        //                 {"hint": "This document begins with 'We the People'", "answer": "What is the U.S. Constitution?"},
+        //                 {"hint": "This building houses the U.S. Congress", "answer": "What is the Capitol?"},
+        //                 {"hint": "This amendment gave women the right to vote", "answer": "What is the 19th Amendment?"},
+        //                 {"hint": "This term describes a government by the people", "answer": "What is democracy?"}
+        //             ],
+        //             "Medicine": [
+        //                 {"hint": "This organ pumps blood through your body", "answer": "What is the heart?"},
+        //                 {"hint": "This disease was eradicated worldwide in 1980", "answer": "What is smallpox?"},
+        //                 {"hint": "This part of the eye controls how much light enters", "answer": "What is the iris?"},
+        //                 {"hint": "This vitamin is produced when skin is exposed to sunlight", "answer": "What is Vitamin D?"},
+        //                 {"hint": "This is the largest organ in the human body", "answer": "What is the skin?"}
+        //             ],
+        //             "Space": [
+        //                 {"hint": "This planet is known as the Red Planet", "answer": "What is Mars?"},
+        //                 {"hint": "This was the first artificial satellite launched into space", "answer": "What is Sputnik?"},
+        //                 {"hint": "This is the closest star to Earth", "answer": "What is the Sun?"},
+        //                 {"hint": "This astronaut was the first person to walk on the moon", "answer": "Who is Neil Armstrong?"},
+        //                 {"hint": "This galaxy contains our solar system", "answer": "What is the Milky Way?"}
+        //             ],
+        //             "Mythology": [
+        //                 {"hint": "This Greek god rules the underworld", "answer": "Who is Hades?"},
+        //                 {"hint": "This Norse god wields a hammer called Mjolnir", "answer": "Who is Thor?"},
+        //                 {"hint": "This creature is half-man, half-horse", "answer": "What is a centaur?"},
+        //                 {"hint": "This Greek hero had a weakness in his heel", "answer": "Who is Achilles?"},
+        //                 {"hint": "This Egyptian god has the head of a jackal", "answer": "Who is Anubis?"}
+        //             ]
+        //         }
+        //     },
+        //     finalJeopardy: {
+        //         category: "ANCIENT WONDERS",
+        //         hint: "This ancient wonder of the world is the only one still standing today.",
+        //         answer: "What is the Great Pyramid of Giza?"
+        //     }
+        // };
 
         const rounds = ["round1", "round2", "round3", "round4", "round5"];
         const modal = document.getElementById("modal");
