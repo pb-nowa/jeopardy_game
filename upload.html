@@ -303,12 +303,14 @@
                 <input type="file" id="csvFile" accept=".csv" required>
                 <div class="help-text">
                     New to this? <a href="game-template.csv" download>⬇️ Download a blank CSV template</a> to fill in.<br>
-                    Columns: <code>Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy</code>
+                    Columns: <code>Name, Difficulty, Question, Answer, Round, isDoubleJeopardy</code>
                     (optional <code>Image URL</code> column, if you already have an image hosted somewhere — otherwise leave it
                     blank and attach photos afterward from the saved-games list below).
-                    <code>Round, order</code> is like <code>"1,3"</code> (round 1, 3rd category) for regular questions.
-                    For Final Jeopardy, put the literal text <code>Final Jeopardy</code> in that column, with the category
-                    in <code>Name</code>, the clue in <code>Question</code>, and the response in <code>Answer</code>.
+                    <code>Round</code> is just <code>1</code>, <code>2</code>, or <code>3</code> — a category's left-to-right
+                    position on the board is simply the order its rows first appear in the file, so keep all 5 rows of a
+                    category together. For Final Jeopardy, put the literal text <code>Final Jeopardy</code> in the
+                    <code>Round</code> column instead, with the category in <code>Name</code>, the clue in
+                    <code>Question</code>, and the response in <code>Answer</code>.
                     Each round needs exactly 5 categories with 5 questions (difficulty 1-5) apiece; rounds 1-3 are all optional
                     but whichever are present must be complete.
                 </div>

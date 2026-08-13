@@ -88,11 +88,11 @@ A real-time multi-device Jeopardy buzzer system with WebSocket support for seaml
 
 Visit `/upload.html` to upload a CSV of questions instead of hand-editing `hints.json`. You'll need the host password (see Configuration below) to upload or activate a game; anyone can view the saved-games list.
 
-**CSV columns**: `Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy` (an optional `Image URL` column is also accepted, if you already have images hosted somewhere — otherwise leave it blank and attach photos afterward, see below).
+**CSV columns**: `Name, Difficulty, Question, Answer, Round, isDoubleJeopardy` (an optional `Image URL` column is also accepted, if you already have images hosted somewhere — otherwise leave it blank and attach photos afterward, see below). A ready-to-fill-in [blank CSV template](game-template.csv) is also downloadable from the upload page.
 
 - `Name` is the category, `Difficulty` (1-5) sets which dollar-value row the question lands on.
-- `"Round, order"` is a single column holding `"<round>,<order>"`, e.g. `"1,3"` means round 1, 3rd category from the left. Each round you use needs exactly 5 distinct categories (orders 1-5) with exactly 5 questions each (difficulties 1-5) — rounds 1, 2, and 3 are each optional, but whichever you include must be complete.
-- **Final Jeopardy**: put the literal text `Final Jeopardy` in the `Round, order` column for that row. `Name` becomes the FJ category, `Question` the clue, `Answer` the response.
+- `Round` is just `1`, `2`, or `3`. A category's left-to-right column position on the board isn't a separate field — it's simply the order that category's rows first appear in the file, so keep all 5 rows of a category grouped together. Each round you use needs exactly 5 distinct categories with exactly 5 questions each (difficulties 1-5) — rounds 1, 2, and 3 are each optional, but whichever you include must be complete.
+- **Final Jeopardy**: put the literal text `Final Jeopardy` in the `Round` column for that row instead of a number. `Name` becomes the FJ category, `Question` the clue, `Answer` the response.
 - `isDoubleJeopardy` is `TRUE`/`FALSE` per question.
 
 After uploading, click **Activate** on the game in the saved-games list — the game board (`jeopardy.html`) picks up the change live via WebSocket, no refresh needed. Team scores are not affected by switching games; use the host's "Reset Team Scores" action separately if you want a clean scoreboard for a new match.
