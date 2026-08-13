@@ -101,7 +101,7 @@ Clicking **Unlock** on `/upload.html` actually verifies the password against the
 
 ## 📷 Attaching Photos to Questions
 
-After a CSV is uploaded, click **🖼️ Photos** next to it in the saved-games list on `/upload.html` to open its photo editor. Each question shows an editable hint textarea, a current-photo preview (or "No image"), a file picker, and Save/Remove buttons — attach or replace a photo, or edit/blank the hint text, one question at a time. Hint text is optional: leave it blank and only the photo shows; fill it in alongside a photo and both show.
+After a CSV is uploaded, click **✏️ Edit** next to it in the saved-games list on `/upload.html` to open its question editor. Each question shows an editable hint textarea, a current-photo preview (or "No image"), a file picker, and Save/Remove buttons — attach or replace a photo, or edit/blank the hint text, one question at a time. Hint text is optional: leave it blank and only the photo shows; fill it in alongside a photo and both show.
 
 If the game you're editing is currently **active** on the board, changes appear live — `jeopardy.html` picks them up over the same WebSocket connection used for switching games, without a manual refresh. Photo uploads (JPEG/PNG/WebP/GIF, up to 8MB) are resized on upload (capped at 1600px wide) so a full-size phone photo doesn't ship straight to the shared screen.
 
