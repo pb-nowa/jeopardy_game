@@ -4,6 +4,8 @@ A real-time multi-device Jeopardy buzzer system with WebSocket support for seaml
 
 ## 🚀 Quick Start
 
+**Requires Node 18+.** A `.nvmrc` is included — run `nvm use` (or `nvm install` if you don't have 18 yet) before the steps below if you use nvm. Older Node versions will fail to load the `csv-parse`/`multer` dependencies.
+
 1. **Install Dependencies**
    ```bash
    npm install
@@ -36,6 +38,7 @@ A real-time multi-device Jeopardy buzzer system with WebSocket support for seaml
 4. Watch live buzzes come in with timing and rankings
 5. Mark answers as correct ✅ or wrong ❌
 6. Use "New Question" to reset for the next question
+7. Use the "📁 Upload Game" link at the bottom to jump to `/upload.html` and switch which question set is active
 
 ## 🌐 Network Features
 
@@ -71,10 +74,12 @@ A real-time multi-device Jeopardy buzzer system with WebSocket support for seaml
 
 - `GET /api/gamestate` - Current game state (JSON), including `activeGameId`
 - `GET /api/stats` - Game statistics and server uptime
+- `GET /api/version` - Deployed commit SHA and server start time (see "Checking which version is deployed" below)
 - `GET /api/games` - List uploaded games (id, name, upload time)
 - `GET /api/games/:id` - Fetch a specific uploaded game's board data
 - `POST /api/games/upload` - Upload a CSV game (requires `x-host-password` header, see below)
 - `POST /api/games/activate` - Make an uploaded game the active one (requires `x-host-password` header)
+- `POST /api/games/verify-password` - Checks whether a password is correct without performing any action (used by `/upload.html`'s "Unlock" button); requires `x-host-password` header
 - All real-time communication via WebSocket events
 
 ## 📁 Uploading Custom Games (CSV)
@@ -89,6 +94,12 @@ Visit `/upload.html` to upload a CSV of questions instead of hand-editing `hints
 - `isDoubleJeopardy` is `TRUE`/`FALSE` per question.
 
 After uploading, click **Activate** on the game in the saved-games list — the game board (`jeopardy.html`) picks up the change live via WebSocket, no refresh needed. Team scores are not affected by switching games; use the host's "Reset Team Scores" action separately if you want a clean scoreboard for a new match.
+
+Clicking **Unlock** on `/upload.html` actually verifies the password against the server before showing "Unlocked" — a wrong password shows an error instead of a false-positive unlocked state, and if a password is ever rejected mid-session (e.g. it was changed on the server), the UI drops back to locked automatically.
+
+## 🔖 Checking Which Version Is Deployed
+
+`GET /api/version` returns the deployed commit SHA — on Render this comes from the automatically-set `RENDER_GIT_COMMIT` env var, so it always matches whatever was actually pushed (no manual version bumping needed). It's also shown as a small tag at the bottom of the home page (`index.html`), which is the fastest way to confirm a redeploy actually picked up your latest push.
 
 ## 🔧 Configuration
 
@@ -199,8 +210,12 @@ npm run dev  # Uses nodemon for auto-restart
 ├── jeopardy.html      # Game board
 ├── upload.html        # CSV game upload / activation
 ├── lib/csvToGameData.js  # CSV parsing + validation
+├── lib/gameStore.js    # Picks Redis vs local-disk storage backend
+├── lib/fileGameStore.js   # Local-disk backend (games/*.json)
+├── lib/redisGameStore.js  # Upstash Redis backend
 ├── routes/games.js    # Upload/list/activate/fetch API for uploaded games
-├── games/              # Uploaded games are saved here as JSON (gitignored)
+├── games/              # Local-disk game storage, used when Redis isn't configured (gitignored)
+├── .env.example        # Template for local environment variables
 └── package.json       # Node.js dependencies
 ```
 
