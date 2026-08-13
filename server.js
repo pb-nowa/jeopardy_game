@@ -1,8 +1,22 @@
+require('dotenv').config({ quiet: true }); // loads .env if present; no-op (and no error) if it doesn't exist
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+
+// Gates the CSV upload/activate endpoints (routes/games.js). Refuse to boot with an
+// open, unauthenticated upload endpoint in production; allow an obvious dev fallback
+// (with a loud warning) so local development doesn't require env setup.
+const HOST_PASSWORD = process.env.HOST_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'dev' : null);
+if (!HOST_PASSWORD) {
+    console.error('FATAL: HOST_PASSWORD environment variable is not set. Refusing to start in production without it.');
+    process.exit(1);
+}
+if (HOST_PASSWORD === 'dev') {
+    console.warn('WARNING: using default dev HOST_PASSWORD ("dev"). Set the HOST_PASSWORD env var before deploying.');
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -25,6 +39,7 @@ let gameState = {
     buzzingEnabled: false,
     currentQuestion: null,
     currentQuestionValue: 0, // Current question point value
+    activeGameId: null, // id of the uploaded game currently loaded on the board (routes/games.js)
     teamScores: {
         1: 0,
         2: 0,
@@ -111,6 +126,11 @@ function cleanupOldData() {
 // Run cleanup every minute
 setInterval(cleanupOldData, 60000);
 
+// CSV game upload/activation API (mutates the live gameState by reference — see
+// resetGame() below, which is careful to mutate in place rather than reassign
+// `gameState`, so this reference never goes stale).
+app.use('/api/games', require('./routes/games')({ gameState, broadcastGameState, hostPassword: HOST_PASSWORD }));
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
     console.log(`New client connected: ${socket.id}`);
@@ -154,7 +174,8 @@ io.on('connection', (socket) => {
                 name: playerData.name,
                 team: parseInt(playerData.team),
                 joinedAt: Date.now(),
-                lastSeen: Date.now()
+                lastSeen: Date.now(),
+                penaltyUntil: 0
             };
 
             gameState.players.push(player);
@@ -187,6 +208,27 @@ io.on('connection', (socket) => {
         try {
             const { playerId, playerName, team } = buzzData;
             const now = Date.now();
+            
+            // Find player and enforce global penalty (regardless of question state)
+            const player = gameState.players.find(p => p.id === playerId);
+            if (!player) {
+                socket.emit('buzzResult', { 
+                    success: false, 
+                    reason: 'error',
+                    message: 'Player not found'
+                });
+                return;
+            }
+            if (player.penaltyUntil && now < player.penaltyUntil) {
+                const remainingTime = player.penaltyUntil - now;
+                socket.emit('buzzResult', { 
+                    success: false, 
+                    reason: 'cooldown', 
+                    remainingTime: remainingTime,
+                    message: `Please wait ${Math.ceil(remainingTime / 1000)} seconds (early buzz penalty)`
+                });
+                return;
+            }
             
             // Check if player is in cooldown (only applies to early buzzes for current question)
             const existingBuzz = gameState.buzzes.find(b => 
@@ -233,6 +275,12 @@ io.on('connection', (socket) => {
             
             // Determine if this is an early buzz (before host enables buzzing)
             const isEarlyBuzz = !gameState.hostControls.buzzEnabled;
+            
+            // If early buzz, set/extend player penalty
+            if (isEarlyBuzz) {
+                const newPenaltyUntil = now + (gameState.hostControls.buzzCooldown || 2000);
+                player.penaltyUntil = Math.max(player.penaltyUntil || 0, newPenaltyUntil);
+            }
             
             // Add or update buzz for current question
             const buzzIndex = gameState.buzzes.findIndex(b => 
@@ -386,8 +434,9 @@ io.on('connection', (socket) => {
         let playerName = '';
         
         if (buzz) {
-            // Deduct points from the team
-            pointsDeducted = gameState.currentQuestionValue || 0;
+            // Deduct half the question value, rounded up to the nearest $50 (standard questions only)
+            const baseValue = gameState.currentQuestionValue || 0;
+            pointsDeducted = Math.ceil((baseValue / 2) / 50) * 50;
             team = buzz.team;
             playerName = buzz.playerName;
             
@@ -496,8 +545,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('resetGame', () => {
-        // Reset entire game state
-        gameState = {
+        // Reset buzzer/score state in place (never reassign `gameState` — routes/games.js
+        // holds a reference to this exact object). activeGameId is deliberately left
+        // untouched: switching the buzzer/score state isn't the same as unloading the
+        // currently active question set.
+        Object.assign(gameState, {
             players: [],
             buzzes: [],
             buzzingEnabled: false,
@@ -515,11 +567,11 @@ io.on('connection', (socket) => {
                 questionActive: false
             },
             lastUpdate: Date.now()
-        };
-        
+        });
+
         broadcastGameState();
         io.emit('gameReset');
-        
+
         console.log('Game reset');
     });
 

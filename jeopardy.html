@@ -133,7 +133,7 @@
 
         .question {
             background: #0077cc;
-            padding: 40px;
+            padding: 36px;
             font-size: 24px;
             cursor: pointer;
             border: 2px solid #004080;
@@ -522,7 +522,7 @@
 
 <body>
     <h1>
-        Kelsey's Birthday Jeopardy!
+        Welcome back to the USA Sarah, Jeopardy!
         <div class="hamburger-menu">
             <button class="hamburger-btn" onclick="toggleHamburger()">
                 <span></span>
@@ -619,220 +619,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="shared.js"></script>
     <script>
-        let gameData = {
-            "round1": {
-                "questions": {
-                "Minecraft": [
-                    {"hint": "These are the two types of modes you can play in Minecraft", "answer": "What is survival and creative?"},
-                    {"hint": "This is when the Minecraft game was released", "answer": "When was 2011?"},
-                    {"hint": "This item allows you to reset your spawn point", "answer": "What is a bed?"},
-                    {"hint": "This is the rarest item in the game", "answer": "What is a dragon egg?"},
-                    {"hint": "This was Minecraft's running title during production", "answer": "What is Cave Game?"}
-                ],
-                "Do - Re - Mi": [
-                    {"hint": "This woodwind instrument is often a student's first introduction to playing music", "answer": "What is a recorder? (starts with Re)"},
-                    {"hint": "In music, it means to gradually get louder", "answer": "What is a crescendo? (ends with Do)"},
-                    {"hint": "A symbol in sheet music that means to NOT play", "answer": "What is a rest? (starts with Re)"},
-                    {"hint": "This scale contains all of the white keys on the piano", "answer": "What is A minor? (contains Mi)"},
-                    {"hint": "This digital communication protocol is how electronic instruments encode data", "answer": "What is MIDI? (starts with Mi)", "doubleJeopardy": true }
-                ],
-                "Guest Stars Featured in the Original TV Series \"Sabrina the Teenage Witch\"": [
-                    {"hint": "The artist known as the Princess of Pop.", "answer": "Who is Britney Spears?"},
-                    {"hint": "The singer who released a song in 2014 about an animated character and was accused of racism.", "answer": "Who is Avril Lavigne?"},
-                    {"hint": "The actor who played the beloved Chimney Sweep in Mary Poppins.", "answer": "Who is Dick Van Dyke?"},
-                    {"hint": "The singer whose song includes the line 'Got me like, \"Oh my gosh,\" I'm so in love...'", "answer": "Who is Usher?"},
-                    {"hint": "The host of a competition show that begins with 'Start your engines.'", "answer": "Who is RuPaul?"}
-                ],
-                "Reality Showdown": [
-                    {"hint": "One man hands out roses to hopeful women until he proposes", "answer": "What is The Bachelor?"},
-                    {"hint": "Contestants are stranded and must outwit, outplay, and outlast", "answer": "What is Survivor?"},
-                    {"hint": "Four chefs face off using mystery basket ingredients", "answer": "What is Chopped?"},
-                    {"hint": "Truckers haul cargo over frozen roads in the Arctic", "answer": "What is Ice Road Truckers?"},
-                    {"hint": "A docuseries on women in a conservative religious sect", "answer": "What is Secret Lives of Mormon Wives?"}
-                ],
-                "Vegetables": [
-                    {"hint": "Leafy green vegetable associated with Popeye", "answer": "What is spinach?"},
-                    {"hint": "This starchy vegetable is often mashed, fried, or baked and was originally cultivated in the Andes.", "answer": "What is potato?"},
-                    {"hint": "This glossy purple vegetable is technically a berry and is featured in dishes like baba ghanoush and ratatouille. ", "answer": "What is eggplant?"},
-                    {"hint": "Often mistaken for a vegetable due to its savory use, this green produce is botanically classified as a fruit. ", "answer": "What is zucchini?"},
-                    {"hint": "This vegetable is a member of the nightshade family and is often used in Italian, Mediterranean, Middle Eastern and Latin American cuisine.", "answer": "What is tomato?"}
-                ],
-                }
-            },
-            "round2": {
-                "questions": {
-                "Lager Than Life": [
-                    {"hint": "Royal term used to indicate a strong beer", "answer": "What is imperial?"},
-                    {"hint": "The sugary sweet liquid that is a result from mashing", "answer": "What is wort?"},
-                    {"hint": "Responsible for converting sugar into alcohol and CO2", "answer": "What is yeast?"},
-                    {"hint": "OG, a measurement of density", "answer": "What is Original Gravity?"},
-                    {"hint": "An off-flavor that tastes like movie popcorn butter", "answer": "What is diacetyl?"}
-                ],
-                "It's time for dodger baseball!": [
-                    {"hint": "Before they moved to Los Angeles, the Dodgers baseball team played in this borough in NYC", "answer": "What is Brooklyn?"},
-                    {"hint": "Legendary Dodgers player, famous for breaking baseball's color barrier", "answer": "Who is Jackie Robinson?"},
-                    {"hint": "Team defeated by LA Dodgers in 2024 World Series", "answer": "Who are the New York Yankees?"},
-                    {"hint": " Shohei Ohtani became the first player in baseball history to join this exclusive 'club' by achieving at least 50 of two specific offensive statistics", "answer": "What is the 50/50 club (50 home runs 50 steals)"},
-                    {"hint": "This Japanese pitcher is the first player in baseball history to win a World Series, an Olympic gold medal, and a World Baseball Classic title", "answer": "Who is Yoshinobu Yamamoto?"}
-                ],
-                "Pen pals group chat quotes, \"What did who say?\"": [
-                    {
-                        "hint": "\"hey guys, it's national high potassium awareness day today. please limit yourself to eating no more than one (1) banana today.\"",
-                        "answer": "What did Dan say?"
-                    },
-                    {
-                        "hint": "\"Please do not bring soju to my house\"",
-                        "answer": "What did Preston say?"
-                    },
-                    {
-                        "hint": "\"What about... Fortnite?\"",
-                        "answer": "What did Kelsey say?"
-                    },
-                    {
-                        "hint": "\"Lmao the asian kids\"",
-                        "answer": "What did Joseph say?"
-                    },
-                    {
-                        "hint": "\"I am scared of Dan\"",
-                        "answer": "What did Sarah say?"
-                    }
-                ],
-                "Peas and Thank You": [
-                    {"hint": "The legume used to make hummus", "answer": "What are chickpeas?"},
-                    {"hint": "This phrase means to be very close or in perfect harmony", "answer": "What is 'two peas in a pod'?"},
-                    {"hint": "A popular spicy, crunchy snack often enjoyed in Japan", "answer": "What are wasabi peas?"},
-                    {"hint": "This roadside diner is known for pea soup on Route 66", "answer": "What is Anderson's Pea Soup?", "doubleJeopardy": true },
-                    {"hint": "Scientist who worked with pea plants", "answer": "Who is Gregor Mendel?"}
-                ],
-                "90s-2000s Cartoon Characters": [
-                    {"hint": "This character is an evil genius who frequently clashes with three little girls", "answer": "Who is Mojo Jojo?"},
-                    {"hint": "This character lives underwater and cannot talk but likes to meow", "answer": "Who is Gary?"},
-                    {"hint": "This character lives in Kansas and saves his family from monsters", "answer": "Who is Courage?"},
-                    {"hint": "This character is a mischievous little alien that landed on an island", "answer": "Who is Stitch?"},
-                    {"hint": "This character walks around with a sword and is on a quest to return to the past", "answer": "Who is Samurai Jack?"}
-                ]
-                }
-            },
-           "round3": {
-                "questions": {
-                    "Going Batty": [
-                    {
-                        "hint": "This is a form of natural sonar that bats use to navigate and, in some species, hunt.",
-                        "answer": "What is echolocation?"
-                    },
-                    {
-                        "hint": "This disease, first reported in 2007, has killed millions of bats.",
-                        "answer": "What is white nose syndrome?"
-                    },
-                    {
-                        "hint": "This species of bat has saliva that has been used to develop anticoagulant drugs.",
-                        "answer": "What is the vampire bat (Desmodus Rotundus)?"
-                    },
-                    {
-                        "hint": "This species of bat is the state bat of California.",
-                        "answer": "What is the pallid bat (Antrozous pallidus)?"
-                    },
-                    {
-                        "hint": "This species of bat has the fastest recorded horizontal speed of any animal.",
-                        "answer": "What is the Mexican free tail (Tadarida brasiliensis)?"
-                    }
-                    ],
-                    "Chop It Like It's Hot": [
-                        {
-                            "hint": "This term describes cooking something in water at 212°F.",
-                            "answer": "What is boiling?"
-                        },
-                        {
-                            "hint": "This term refers to the process of quickly cooking vegetables in a small amount of oil over high heat, often in a wok.",
-                            "answer": "What is stir-frying?"
-                        },
-                        {
-                            "hint": "This Italian dish's name means \"little tongues\" and is made with flat, ribbon-shaped pasta.",
-                            "answer": "What is linguine?"
-                        },
-                        {
-                            "hint": "This rice wine is used in cooking to add sweetness and umami; it's not to be confused with sake.",
-                            "answer": "What is mirin?"
-                        },
-                        {
-                            "hint": "This thick sauce, made from butter, flour, and milk, is one of the \"mother sauces\" of French cuisine.",
-                            "answer": "What is béchamel?",
-                            "doubleJeopardy": true
-                        },
-                    ],
-                    "Kelsey's Cozy Crew": [
-                        {
-                            "hint": "First documented in a 1927 Girl Scout publication titled 'Tramping and Trailing with the Girl Scouts', it's a dessert that is beloved for its gooey texture. ", "answer": "What is a S'more?"
-                        },
-                        {
-                            "hint": "Despite its name, this food, which gained significant popularity at the 1904 St. Louis World's Fair, typically contains no ham.",
-                            "answer": "What is a Burger?"
-                        },
-                        {
-                            "hint": "This leafy green vegetable, a type of Chinese cabbage, is distinguished by its crisp white or light green stalks and dark green leaves, often stir-fried or added to soups.",
-                            "answer": "What is Bok Choy"
-                        },
-                        {
-                            "hint": "This cruciferous vegetable is celebrated for its high nutritional content, including significant amounts of Vitamin K, and comes in varieties like curly and Lacinato.",
-                            "answer": "What is Kale?"
-                        },
-                        {
-                            "hint": "Originally appearing on a vinyl coin purse, this character's creator strategically chose a British origin to appeal to a global audience in the 1970s.",
-                            "answer": "What is Hello Kitty?"
-                        },
-                    ],
-                    "Who's that Pokémon?": [
-                        {
-                            "hint": "This mouse Pokémon is easily identified by the red patches on their cheeks.",
-                            "answer": "What is Pikachu?"
-                        },
-                        {
-                            "hint": "This round Pokémon is known to sing people to sleep.",
-                            "answer": "What is Jigglypuff?"
-                        },
-                        {
-                            "hint": "Rumored to be failed clones of Mew, this Pokémon can transform into other Pokémon and objects.",
-                            "answer": "What is Ditto?"
-                        },
-                        {
-                            "hint": "This fire crocodile was the starter Pokémon of Mr. Preston in Pokémon Scarlet.",
-                            "answer": "What is Fuecoco?"
-                        },
-                        {
-                            "hint": "This chess themed Pokémon is the final evolution of Pawniard.",
-                            "answer": "What is Kingambit?"
-                        }   
-                    ],
-                    "Shuffle Board": [
-                        {
-                            "hint": "A classic game of skill: SCESH",
-                            "answer": "What is Chess?"
-                        },
-                        {
-                            "hint": "A game for the greedy: NOMYPOOL",
-                            "answer": "What is Monopoly?"
-                        },
-                        {
-                            "hint": "A game with ups and downs: SDACRHDELSTAUNOED",
-                            "answer": "What is Chutes and Ladders?"
-                        },
-                        {
-                            "hint": "A game usually made of carved wood: NLACAMA",
-                            "answer": "What is Mancala?"
-                        },
-                        {
-                            "hint": "A basic simulation game: GTEFLOMIEHAE",
-                            "answer": "What is The Game of Life?"
-                        }
-                    ]
-                }
-            },
-            "finalJeopardy": {
-                "category": "ANCIENT WONDERS",
-                "hint": "This ancient wonder of the world is the only one still standing today.",
-                "answer": "What is the Great Pyramid of Giza?"
-            }
-        }
+        let gameData = null;
 
         const rounds = ["round1", "round2", "round3", "round4", "round5"];
         const modal = document.getElementById("modal");
@@ -845,6 +632,66 @@
         let teamScores = [0, 0, 0, 0]; // Scores for teams 1-4 (will be updated from server)
         let currentQuestionValue = 0;
         let currentRound = 1;
+        let currentActiveGameId = null; // id of the uploaded game currently loaded, or null for the default hints.json
+
+        // Fetches a specific uploaded game's data, falling back to the bundled hints.json
+        // when no game is active (or the active one fails to load) — preserves today's
+        // default behavior for anyone opening the board before any CSV has been uploaded.
+        async function fetchGameData(activeGameId) {
+            if (activeGameId) {
+                try {
+                    const res = await fetch('/api/games/' + activeGameId, { cache: 'no-store' });
+                    if (res.ok) return await res.json();
+                    console.warn('Active game', activeGameId, 'could not be loaded, falling back to hints.json');
+                } catch (err) {
+                    console.warn('Error fetching active game, falling back to hints.json:', err);
+                }
+            }
+            const fallbackRes = await fetch('hints.json', { cache: 'no-store' });
+            return await fallbackRes.json();
+        }
+
+        async function initGameFromHints() {
+            try {
+                const stateRes = await fetch('/api/gamestate', { cache: 'no-store' });
+                const state = await stateRes.json();
+                currentActiveGameId = (state && state.activeGameId) || null;
+                gameData = await fetchGameData(currentActiveGameId);
+            } catch (err) {
+                console.error('Failed to load game data:', err);
+                gameData = { round1: { questions: {} }, round2: { questions: {} }, round3: { questions: {} }, finalJeopardy: { category: '', hint: '', answer: '' } };
+                currentActiveGameId = null;
+            }
+
+            // Build boards after data load
+            createBoard(1, 100);
+            createBoard(2, 200);
+            createBoard(3, 300);
+
+            // Initialize score display
+            updateScoreDisplay();
+            
+            // Load JSON editor with current data
+            loadJSON();
+        }
+
+        // Called when the host activates a different uploaded game mid-session.
+        async function reloadActiveGame(newActiveGameId) {
+            try {
+                currentActiveGameId = newActiveGameId;
+                gameData = await fetchGameData(newActiveGameId);
+
+                createBoard(1, 100);
+                createBoard(2, 200);
+                createBoard(3, 300);
+                showRound(1);
+                loadJSON();
+
+                console.log('Loaded new active game:', newActiveGameId);
+            } catch (err) {
+                console.error('Failed to reload active game:', err);
+            }
+        }
 
         // Hamburger menu functions
         function toggleHamburger() {
@@ -947,7 +794,7 @@
             // Check if this is a Double Jeopardy question
             if (currentContent.doubleJeopardy === 'true') {
                 showingDoubleJeopardy = true;
-                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button><div style="font-size: clamp(2rem, 8vw, 4rem); color: gold; font-weight: bold; text-align: center; padding: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; word-wrap: break-word; max-width: 100%; box-sizing: border-box;">DAILY TRIPLE</div>';
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button><div style="font-size: clamp(2rem, 8vw, 4rem); color: gold; font-weight: bold; text-align: center; padding: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; word-wrap: break-word; max-width: 100%; box-sizing: border-box;">DAILY DOUBLE</div>';
             } else {
                 modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
             }
@@ -968,6 +815,7 @@
                     question: currentContent.hint,
                     answer: currentContent.answer,
                     value: currentQuestionValue,
+					doubleJeopardy: currentContent.doubleJeopardy === 'true',
                     timestamp: Date.now()
                 });
             }
@@ -1028,36 +876,36 @@
 
         function adjustCategoryFontSize(element) {
             const text = element.innerText;
-            let fontSize = 36; // Start with default size
+            const defaultFontSize = 32;
+            let fontSize = defaultFontSize; // Start with default size
             
             // Only adjust font size if text is longer than typical category names
             if (text.length > 15) {
                 // Adjust font size based on text length
-                if (text.length > 50) {
-                    fontSize = 18;
-                } else if (text.length > 35) {
-                    fontSize = 22;
-                } else if (text.length > 25) {
-                    fontSize = 26;
-                } else {
+                if (text.length > 30) {
+                    fontSize = 16;
+                } else if (text.length > 20) {
+                    fontSize = 24;
+                } else if (text.length > 15) {
                     fontSize = 30;
+                } else {
+                    fontSize = defaultFontSize;
                 }
                 
                 // Set the font size for this specific element only
                 element.style.fontSize = fontSize + 'px';
                 
                 // Fine-tune by checking if text actually fits in 2 lines
-                setTimeout(() => {
-                    const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
-                    const maxHeight = lineHeight * 2;
+                // setTimeout(() => {
+                //     const lineHeight = parseFloat(getComputedStyle(element).lineHeight);
+                //     const maxHeight = lineHeight * 2;
                     
-                    while (element.scrollHeight > maxHeight && fontSize > 14) {
-                        fontSize -= 2;
-                        element.style.fontSize = fontSize + 'px';
-                    }
-                }, 0);
+                //     while (element.scrollHeight > maxHeight && fontSize > 14) {
+                //         fontSize -= 2;
+                //         element.style.fontSize = fontSize + 'px';
+                //     }
+                // }, 0);
             }
-            // If text is 15 characters or less, keep the default 36px font size (no adjustment needed)
         }
 
         function toggleFinalTimer() {
@@ -1446,6 +1294,14 @@
                     console.log('Full gameState:', gameState);
                     console.log('teamScores in gameState:', gameState ? gameState.teamScores : 'undefined');
                     updateTeamScoresFromServer(gameState);
+
+                    // Host activated a different uploaded game (e.g. from upload.html) —
+                    // reload the board. Team scores are intentionally left untouched;
+                    // switching question sets isn't the same as starting a new match.
+                    const newActiveGameId = (gameState && gameState.activeGameId) || null;
+                    if (newActiveGameId !== currentActiveGameId) {
+                        reloadActiveGame(newActiveGameId);
+                    }
                 });
                 
                 // Listen for scoring events
@@ -1549,12 +1405,7 @@
         }, 1000);
 
         // Initialize game
-        createBoard(1, 100);
-        createBoard(2, 200);
-        createBoard(3, 300);
-        
-        // Initialize score display
-        updateScoreDisplay();
+        initGameFromHints();
         
         // Add click listeners for score editing
         for (let i = 1; i <= 4; i++) {
@@ -1566,8 +1417,6 @@
             }
         }
         
-        // Load JSON in editor on page load
-        loadJSON();
     </script>
 </body>
 

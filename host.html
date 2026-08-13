@@ -459,6 +459,20 @@
             justify-content: center;
             margin-top: 10px;
         }
+		
+		.daily-double-badge {
+			background: linear-gradient(45deg, #ffd700, #ffea70);
+			color: #333;
+			border: 2px solid #ffd700;
+			border-radius: 999px;
+			padding: 6px 12px;
+			font-weight: bold;
+			width: fit-content;
+			margin: 0 auto 8px auto;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+		}
     </style>
 </head>
 <body>
@@ -480,6 +494,7 @@
     <div class="jeopardy-display" id="jeopardyDisplay" style="display: none;">
         <h3>🎯 Current Jeopardy Question</h3>
         <div class="jeopardy-content">
+			<div id="dailyDoubleBadge" class="daily-double-badge" style="display: none;">DAILY DOUBLE</div>
             <div class="jeopardy-value" id="jeopardyValue">$0</div>
             <div class="jeopardy-question" id="jeopardyQuestion">No question selected</div>
             <div class="jeopardy-answer" id="jeopardyAnswer" style="display: none;">
@@ -982,6 +997,7 @@
             const questionEl = document.getElementById('jeopardyQuestion');
             const answerEl = document.getElementById('jeopardyAnswer');
             const answerTextEl = document.getElementById('jeopardyAnswerText');
+			const dailyBadgeEl = document.getElementById('dailyDoubleBadge');
 
             // Show the display section
             displayEl.style.display = 'block';
@@ -990,6 +1006,12 @@
             valueEl.textContent = `$${questionData.value}`;
             questionEl.textContent = questionData.question;
             answerTextEl.textContent = questionData.answer;
+
+			// Toggle Daily Double badge
+			if (dailyBadgeEl) {
+				const isDaily = questionData && (questionData.doubleJeopardy === true || questionData.doubleJeopardy === 'true' || questionData.isDailyDouble === true);
+				dailyBadgeEl.style.display = isDaily ? 'inline-block' : 'none';
+			}
 
             // Show answer immediately
             answerEl.style.display = 'block';
@@ -1002,6 +1024,12 @@
             const displayEl = document.getElementById('jeopardyDisplay');
             displayEl.style.display = 'none';
             window.currentJeopardyData = null;
+			
+			// Hide Daily Double badge
+			const dailyBadgeEl = document.getElementById('dailyDoubleBadge');
+			if (dailyBadgeEl) {
+				dailyBadgeEl.style.display = 'none';
+			}
             
             // Close modal on jeopardy board
             if (typeof closeJeopardyModal === 'function') {

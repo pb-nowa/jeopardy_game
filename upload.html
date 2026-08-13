@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Buzzer - Upload Game</title>
+    <style>
+        :root {
+            --bg-primary: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --bg-secondary: rgba(0, 31, 77, 0.9);
+            --bg-tertiary: rgba(255, 255, 255, 0.1);
+            --bg-tertiary-hover: rgba(255, 255, 255, 0.2);
+
+            --text-primary: white;
+            --text-secondary: #ffd700;
+            --text-muted: #b8d4ff;
+
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --input-text: #333;
+            --input-focus-shadow: rgba(255, 215, 0, 0.5);
+
+            --btn-primary-bg: linear-gradient(45deg, #ffd700, #ffed4a);
+            --btn-primary-text: #333;
+            --btn-primary-shadow: rgba(255, 215, 0, 0.4);
+            --btn-secondary-bg: rgba(255, 255, 255, 0.1);
+            --btn-secondary-text: white;
+            --btn-secondary-border: rgba(255, 255, 255, 0.3);
+            --btn-disabled-bg: #666;
+            --btn-disabled-text: #999;
+
+            --error-text: #ff6b6b;
+            --error-bg: rgba(255, 107, 107, 0.1);
+            --success-text: #66ff66;
+            --success-bg: rgba(102, 255, 102, 0.1);
+
+            --border-subtle: rgba(255, 255, 255, 0.2);
+            --active-border: #ffd700;
+            --active-bg: rgba(255, 215, 0, 0.15);
+
+            --shadow-primary: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow-primary);
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: var(--text-secondary);
+            font-size: 0.95em;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="file"] {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            margin-bottom: 15px;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            box-shadow: 0 0 8px var(--input-focus-shadow);
+        }
+
+        button {
+            padding: 14px 22px;
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px var(--btn-primary-shadow);
+        }
+
+        button:disabled {
+            background: var(--btn-disabled-bg);
+            color: var(--btn-disabled-text);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .password-status {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .password-status input {
+            flex: 1;
+            min-width: 180px;
+            margin-bottom: 0;
+        }
+
+        .lock-indicator {
+            font-size: 0.9em;
+            color: var(--text-muted);
+        }
+
+        .lock-indicator.unlocked {
+            color: var(--success-text);
+        }
+
+        .help-text {
+            font-size: 0.85em;
+            color: var(--text-muted);
+            margin-top: -8px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+
+        .help-text code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+
+        .messages {
+            margin-top: 15px;
+        }
+
+        .message {
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+        }
+
+        .message.error {
+            color: var(--error-text);
+            background: var(--error-bg);
+        }
+
+        .message.success {
+            color: var(--success-text);
+            background: var(--success-bg);
+        }
+
+        .game-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .game-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            flex-wrap: wrap;
+        }
+
+        .game-row.active {
+            border-color: var(--active-border);
+            background: var(--active-bg);
+        }
+
+        .game-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-name {
+            font-weight: bold;
+        }
+
+        .game-meta {
+            font-size: 0.8em;
+            color: var(--text-muted);
+        }
+
+        .activate-btn {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-text);
+            border: 2px solid var(--btn-secondary-border);
+        }
+
+        .active-badge {
+            padding: 6px 14px;
+            font-size: 0.85em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 10px 16px;
+            border: 2px solid var(--border-subtle);
+            border-radius: 10px;
+        }
+
+        .nav-links a:hover {
+            background: var(--bg-tertiary-hover);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎯 JEOPARDY</div>
+        <div class="subtitle">Upload &amp; Manage Games</div>
+
+        <div class="panel">
+            <h2>Host Password</h2>
+            <div class="password-status">
+                <input type="password" id="passwordInput" placeholder="Enter host password">
+                <button id="unlockBtn" type="button">Unlock</button>
+                <span class="lock-indicator" id="lockIndicator">🔒 Locked</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>Upload a New Game</h2>
+            <form id="uploadForm">
+                <label for="gameName">Game Name</label>
+                <input type="text" id="gameName" placeholder="e.g. Sarah's Birthday Jeopardy" required>
+
+                <label for="csvFile">CSV File</label>
+                <input type="file" id="csvFile" accept=".csv" required>
+                <div class="help-text">
+                    Columns: <code>Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy</code>
+                    (optional <code>Image URL</code> column, reserved for an upcoming photo-question feature — leave blank for now).
+                    <code>Round, order</code> is like <code>"1,3"</code> (round 1, 3rd category) for regular questions.
+                    For Final Jeopardy, put the literal text <code>Final Jeopardy</code> in that column, with the category
+                    in <code>Name</code>, the clue in <code>Question</code>, and the response in <code>Answer</code>.
+                    Each round needs exactly 5 categories with 5 questions (difficulty 1-5) apiece; rounds 1-3 are all optional
+                    but whichever are present must be complete.
+                </div>
+
+                <button type="submit" id="uploadBtn" disabled>Upload Game</button>
+            </form>
+            <div class="messages" id="uploadMessages"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Saved Games</h2>
+            <div class="game-list" id="gameList">
+                <div class="empty-state">Loading…</div>
+            </div>
+        </div>
+
+        <div class="nav-links">
+            <a href="host.html">🎮 Host Controls</a>
+            <a href="jeopardy.html">🎯 Game Board</a>
+            <a href="index.html">👥 Join as Player</a>
+        </div>
+    </div>
+
+    <script>
+        let hostPassword = sessionStorage.getItem('hostPassword') || '';
+        let activeGameId = null;
+
+        function isUnlocked() {
+            return !!hostPassword;
+        }
+
+        function updateLockUI() {
+            const indicator = document.getElementById('lockIndicator');
+            const uploadBtn = document.getElementById('uploadBtn');
+            if (isUnlocked()) {
+                indicator.textContent = '🔓 Unlocked';
+                indicator.classList.add('unlocked');
+            } else {
+                indicator.textContent = '🔒 Locked';
+                indicator.classList.remove('unlocked');
+            }
+            uploadBtn.disabled = !isUnlocked();
+            renderGames(lastGames);
+        }
+
+        document.getElementById('unlockBtn').addEventListener('click', () => {
+            const value = document.getElementById('passwordInput').value.trim();
+            if (!value) return;
+            hostPassword = value;
+            sessionStorage.setItem('hostPassword', hostPassword);
+            document.getElementById('passwordInput').value = '';
+            updateLockUI();
+        });
+
+        function showMessages(errors, type) {
+            const box = document.getElementById('uploadMessages');
+            box.innerHTML = '';
+            (errors || []).forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'message ' + type;
+                div.textContent = msg;
+                box.appendChild(div);
+            });
+        }
+
+        async function refreshActiveGameId() {
+            try {
+                const res = await fetch('/api/gamestate', { cache: 'no-store' });
+                const state = await res.json();
+                activeGameId = (state && state.activeGameId) || null;
+            } catch (err) {
+                console.error('Failed to load current game state:', err);
+            }
+        }
+
+        let lastGames = [];
+
+        async function loadGames() {
+            const listEl = document.getElementById('gameList');
+            try {
+                await refreshActiveGameId();
+                const res = await fetch('/api/games', { cache: 'no-store' });
+                lastGames = await res.json();
+                renderGames(lastGames);
+            } catch (err) {
+                console.error('Failed to load games list:', err);
+                listEl.innerHTML = '<div class="empty-state">Failed to load saved games.</div>';
+            }
+        }
+
+        function renderGames(games) {
+            const listEl = document.getElementById('gameList');
+            if (!games || games.length === 0) {
+                listEl.innerHTML = '<div class="empty-state">No games uploaded yet.</div>';
+                return;
+            }
+
+            listEl.innerHTML = games.map(game => {
+                const isActive = game.id === activeGameId;
+                const uploadedDate = new Date(game.uploadedAt).toLocaleString();
+                const actionHtml = isActive
+                    ? '<span class="active-badge">✅ Active</span>'
+                    : `<button class="activate-btn" data-game-id="${game.id}" ${isUnlocked() ? '' : 'disabled title="Unlock with the host password to activate"'}>Activate</button>`;
+
+                return `
+                    <div class="game-row ${isActive ? 'active' : ''}">
+                        <div class="game-info">
+                            <div class="game-name">${game.name}</div>
+                            <div class="game-meta">Uploaded ${uploadedDate}</div>
+                        </div>
+                        ${actionHtml}
+                    </div>
+                `;
+            }).join('');
+
+            listEl.querySelectorAll('.activate-btn').forEach(btn => {
+                btn.addEventListener('click', () => activateGame(btn.dataset.gameId));
+            });
+        }
+
+        async function activateGame(gameId) {
+            try {
+                const res = await fetch('/api/games/activate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-host-password': hostPassword
+                    },
+                    body: JSON.stringify({ gameId })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showMessages(data.errors || ['Failed to activate game.'], 'error');
+                    return;
+                }
+                activeGameId = gameId;
+                renderGames(lastGames);
+            } catch (err) {
+                showMessages(['Failed to activate game: ' + err.message], 'error');
+            }
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showMessages([], 'error');
+
+            const name = document.getElementById('gameName').value.trim();
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+
+            if (!name || !file) {
+                showMessages(['A game name and CSV file are required.'], 'error');
+                return;
+            }
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading…';
+
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('csv', file);
+
+            try {
+                const res = await fetch('/api/games/upload', {
+                    method: 'POST',
+                    headers: { 'x-host-password': hostPassword },
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showMessages(data.errors || ['Upload failed.'], 'error');
+                } else {
+                    showMessages([`"${data.name}" uploaded successfully.`], 'success');
+                    document.getElementById('uploadForm').reset();
+                    await loadGames();
+                }
+            } catch (err) {
+                showMessages(['Upload failed: ' + err.message], 'error');
+            } finally {
+                uploadBtn.disabled = !isUnlocked();
+                uploadBtn.textContent = 'Upload Game';
+            }
+        });
+
+        updateLockUI();
+        loadGames();
+    </script>
+</body>
+</html>
