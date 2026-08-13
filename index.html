@@ -320,6 +320,8 @@
         <div class="host-link">
             <a href="host.html" class="host-btn">🎮 Host Controls</a>
         </div>
+
+        <div id="versionTag" style="margin-top: 15px; font-size: 0.75em; color: var(--text-muted); opacity: 0.6;"></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -449,6 +451,15 @@
         window.addEventListener('gameStateChanged', updateTeamCounts);
         window.addEventListener('socketConnected', updateJoinButton);
         window.addEventListener('socketDisconnected', updateJoinButton);
+
+        // Shows which commit is actually deployed, so it's obvious from the browser
+        // whether a redeploy has picked up the latest changes.
+        fetch('/api/version', { cache: 'no-store' })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('versionTag').textContent = `v${data.version}`;
+            })
+            .catch(() => {});
     </script>
 </body>
 </html> 

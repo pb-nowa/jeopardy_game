@@ -5,6 +5,24 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+const { execSync } = require('child_process');
+
+// Render automatically sets RENDER_GIT_COMMIT to the deployed commit SHA — use that in
+// production so the running deploy can be identified without any manual version bump.
+// Falls back to reading the local git HEAD for local dev.
+function resolveVersion() {
+    if (process.env.RENDER_GIT_COMMIT) {
+        return process.env.RENDER_GIT_COMMIT.slice(0, 7);
+    }
+    try {
+        return execSync('git rev-parse --short HEAD', { cwd: __dirname }).toString().trim();
+    } catch (err) {
+        return 'unknown';
+    }
+}
+
+const APP_VERSION = resolveVersion();
+const APP_STARTED_AT = Date.now();
 
 // Gates the CSV upload/activate endpoints (routes/games.js). Refuse to boot with an
 // open, unauthenticated upload endpoint in production; allow an obvious dev fallback
@@ -622,6 +640,13 @@ app.get('/api/stats', (req, res) => {
         uptime: process.uptime()
     };
     res.json(stats);
+});
+
+app.get('/api/version', (req, res) => {
+    res.json({
+        version: APP_VERSION,
+        startedAt: APP_STARTED_AT
+    });
 });
 
 // Serve static files
