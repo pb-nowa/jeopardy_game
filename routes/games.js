@@ -1,13 +1,17 @@
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
-const { parseGameCsv, escapeHtml } = require('../lib/csvToGameData');
+const fs = require('fs');
+const path = require('path');
+const { parseGameCsv, escapeHtml, MAX_CATEGORY_LENGTH } = require('../lib/csvToGameData');
 const { createGameStore } = require('../lib/gameStore');
 const { createImageStore } = require('../lib/imageStore');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_NAME_LENGTH = 80;
 const IMAGE_MIMETYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const TEMPLATE_CSV_PATH = path.join(__dirname, '..', 'game-template.csv');
+const VALID_ROUNDS = ['1', '2', '3'];
 
 // Factory takes the live server.js gameState by reference (mutated in place, never
 // reassigned — see server.js resetGame()) so activation updates flow through the
@@ -99,6 +103,35 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
         });
     });
 
+    // Creates a new game pre-seeded from game-template.csv (the same file hosts can
+    // download from upload.html) — one source of truth for the "blank game" shape,
+    // parsed through the exact same validated pipeline as a real CSV upload.
+    router.post('/blank', requireHostPassword, async (req, res) => {
+        const name = String((req.body && req.body.name) || '').trim();
+        if (!name) {
+            return res.status(400).json({ errors: ['A game name is required.'] });
+        }
+        if (name.length > MAX_NAME_LENGTH) {
+            return res.status(400).json({ errors: [`Game name must be ${MAX_NAME_LENGTH} characters or fewer.`] });
+        }
+
+        try {
+            const templateCsv = fs.readFileSync(TEMPLATE_CSV_PATH);
+            const { gameData, errors } = parseGameCsv(templateCsv);
+            if (errors.length > 0) {
+                console.error('game-template.csv failed to parse:', errors);
+                return res.status(500).json({ errors: ['Internal template error — could not create a blank game.'] });
+            }
+
+            const id = crypto.randomUUID();
+            await store.saveGame(id, name, gameData);
+            res.status(201).json({ id, name });
+        } catch (err) {
+            console.error('Failed to create blank game:', err);
+            res.status(500).json({ errors: ['Failed to create a blank game.'] });
+        }
+    });
+
     router.get('/', async (req, res) => {
         try {
             const list = await store.listGames();
@@ -145,10 +178,13 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
         }
     });
 
-    // Attaches/replaces/removes a single question's photo and/or hint text within an
-    // already-saved game. Multipart fields: round ("1"/"2"/"3"/"final"), category +
-    // difficulty ("1"-"5", both required unless round==="final"), hint (optional text,
-    // including "" to blank it), image (optional file), removeImage ("true").
+    // Attaches/replaces/removes a single question's photo, and/or edits its hint/answer
+    // text, within an already-saved game. Multipart fields: round ("1"/"2"/"3"/"final"),
+    // category + difficulty ("1"-"5", both required unless round==="final"), hint/answer
+    // (optional text, including "" to blank them), image (optional file), removeImage
+    // ("true"). When round==="final", an optional category field renames the Final
+    // Jeopardy category directly (it's a single field, not a positioned array key, so
+    // it doesn't need the structural /category endpoint regular rounds use).
     router.post('/:id/questions', requireHostPassword, (req, res) => {
         uploadImage.single('image')(req, res, async (uploadErr) => {
             if (uploadErr) {
@@ -172,6 +208,10 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
             const removeImage = body.removeImage === 'true';
             const hintProvided = Object.prototype.hasOwnProperty.call(body, 'hint');
             const hint = hintProvided ? String(body.hint) : undefined;
+            const answerProvided = Object.prototype.hasOwnProperty.call(body, 'answer');
+            const answer = answerProvided ? String(body.answer) : undefined;
+            const fjCategoryProvided = isFinal && Object.prototype.hasOwnProperty.call(body, 'category');
+            const fjCategory = fjCategoryProvided ? String(body.category).trim() : undefined;
 
             if (!isFinal && !['1', '2', '3'].includes(round)) {
                 return res.status(400).json({ errors: ['round must be "1", "2", "3", or "final".'] });
@@ -181,6 +221,12 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
             }
             if (!isFinal && !(difficulty >= 1 && difficulty <= 5)) {
                 return res.status(400).json({ errors: ['difficulty must be 1-5 for non-Final-Jeopardy questions.'] });
+            }
+            if (fjCategoryProvided && !fjCategory) {
+                return res.status(400).json({ errors: ['Final Jeopardy category cannot be blank.'] });
+            }
+            if (fjCategoryProvided && fjCategory.length > MAX_CATEGORY_LENGTH) {
+                return res.status(400).json({ errors: [`Category name must be ${MAX_CATEGORY_LENGTH} characters or fewer.`] });
             }
 
             try {
@@ -207,6 +253,12 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
 
                     if (hintProvided) {
                         target.hint = escapeHtml(hint);
+                    }
+                    if (answerProvided) {
+                        target.answer = escapeHtml(answer);
+                    }
+                    if (fjCategoryProvided) {
+                        target.category = escapeHtml(fjCategory);
                     }
 
                     if (req.file) {
@@ -242,6 +294,83 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
                 res.status(500).json({ errors: ['Failed to update question.'] });
             }
         });
+    });
+
+    // Renames a round's category, preserving its column position — a naive
+    // delete-then-re-add would move it to the end of the object's key order, since
+    // jeopardy.html's createBoard() relies on Object.keys() insertion order for
+    // left-to-right layout. Category names are NOT HTML-escaped here (unlike hint/
+    // answer/Final-Jeopardy-category) because they render via `.innerText` in
+    // createBoard(), not `.innerHTML` — escaping would make entities like "&amp;"
+    // show up literally instead of "&".
+    router.post('/:id/category', requireHostPassword, async (req, res) => {
+        const { id } = req.params;
+        if (!UUID_RE.test(id)) {
+            return res.status(404).json({ errors: ['Game not found.'] });
+        }
+
+        const body = req.body || {};
+        const round = String(body.round || '');
+        const oldCategory = body.oldCategory;
+        const newCategory = String(body.newCategory || '').trim();
+
+        if (!VALID_ROUNDS.includes(round)) {
+            return res.status(400).json({ errors: ['round must be "1", "2", or "3".'] });
+        }
+        if (!oldCategory) {
+            return res.status(400).json({ errors: ['oldCategory is required.'] });
+        }
+        if (!newCategory) {
+            return res.status(400).json({ errors: ['New category name cannot be blank.'] });
+        }
+        if (newCategory.length > MAX_CATEGORY_LENGTH) {
+            return res.status(400).json({ errors: [`Category name must be ${MAX_CATEGORY_LENGTH} characters or fewer.`] });
+        }
+
+        try {
+            const category = await withGameLock(id, async () => {
+                const gameData = await store.getGame(id);
+                if (!gameData) {
+                    throw Object.assign(new Error('Game not found.'), { status: 404 });
+                }
+
+                const roundData = gameData[`round${round}`];
+                const questions = roundData && roundData.questions;
+                if (!questions || !Object.prototype.hasOwnProperty.call(questions, oldCategory)) {
+                    throw Object.assign(new Error('Category not found in that round.'), { status: 404 });
+                }
+
+                if (newCategory !== oldCategory && Object.prototype.hasOwnProperty.call(questions, newCategory)) {
+                    throw Object.assign(new Error(`Round ${round} already has a category named "${newCategory}".`), { status: 400 });
+                }
+
+                if (newCategory !== oldCategory) {
+                    const rebuilt = {};
+                    for (const key of Object.keys(questions)) {
+                        rebuilt[key === oldCategory ? newCategory : key] = questions[key];
+                    }
+                    roundData.questions = rebuilt;
+                }
+
+                await store.updateGame(id, gameData);
+
+                if (gameState.activeGameId === id) {
+                    gameState.activeGameContentVersion = (gameState.activeGameContentVersion || 0) + 1;
+                    gameState.lastUpdate = Date.now();
+                    broadcastGameState();
+                }
+
+                return newCategory;
+            });
+
+            res.json({ category });
+        } catch (err) {
+            if (err.status) {
+                return res.status(err.status).json({ errors: [err.message] });
+            }
+            console.error('Failed to rename category:', err);
+            res.status(500).json({ errors: ['Failed to rename category.'] });
+        }
     });
 
     return router;

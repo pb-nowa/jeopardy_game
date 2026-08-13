@@ -180,10 +180,27 @@
             background: var(--bg-tertiary);
             padding: 10px;
             border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .category-name-input {
+            width: 100%;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
             font-weight: bold;
             text-align: center;
-            font-size: 0.9em;
-            word-wrap: break-word;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-family: inherit;
+        }
+
+        .category-header button {
+            padding: 6px;
+            font-size: 12px;
         }
 
         .question-cell, .fj-card {
@@ -270,13 +287,6 @@
 
         .fj-card {
             max-width: 400px;
-        }
-
-        .fj-category {
-            font-weight: bold;
-            color: var(--text-secondary);
-            font-size: 1.1em;
-            text-align: center;
         }
 
         .empty-state {
@@ -417,6 +427,12 @@
             hintArea.placeholder = '(blank = image only, no hint text)';
             cell.appendChild(hintArea);
 
+            const answerArea = document.createElement('textarea');
+            answerArea.className = 'hint-textarea';
+            answerArea.value = question.answer || '';
+            answerArea.placeholder = 'Answer (e.g. What is...?)';
+            cell.appendChild(answerArea);
+
             const imgWrap = document.createElement('div');
             imgWrap.className = 'image-preview-wrap';
             cell.appendChild(imgWrap);
@@ -462,6 +478,7 @@
                 removeBtn.disabled = busy;
                 fileInput.disabled = busy;
                 hintArea.disabled = busy;
+                answerArea.disabled = busy;
             }
 
             async function submitUpdate({ file, removeImage }) {
@@ -482,6 +499,7 @@
                     formData.append('difficulty', String(difficulty));
                 }
                 formData.append('hint', hintArea.value);
+                formData.append('answer', answerArea.value);
                 if (file) formData.append('image', file);
                 if (removeImage) formData.append('removeImage', 'true');
 
@@ -505,6 +523,7 @@
                     }
 
                     question.hint = data.hint;
+                    question.answer = data.answer;
                     question.imageUrl = data.imageUrl;
                     question.imagePublicId = data.imagePublicId;
                     renderPreview();
@@ -530,6 +549,81 @@
             return cell;
         }
 
+        // Editable category-name input + Save, shared by every round column. On a
+        // successful rename, refetches the game and re-renders the whole round — the
+        // simplest way to avoid every question cell in this column holding a stale
+        // `category` string in its closure afterward.
+        function buildCategoryNameEditor(roundNum, category) {
+            const wrap = document.createElement('div');
+            wrap.className = 'category-header';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'category-name-input';
+            input.value = category;
+            wrap.appendChild(input);
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            wrap.appendChild(saveBtn);
+
+            const status = document.createElement('div');
+            status.className = 'cell-status';
+            wrap.appendChild(status);
+
+            saveBtn.addEventListener('click', async () => {
+                const newName = input.value.trim();
+                if (!newName || newName === category) return;
+
+                if (!auth.isUnlocked()) {
+                    status.textContent = 'Unlock with the host password first.';
+                    status.className = 'cell-status error';
+                    return;
+                }
+
+                saveBtn.disabled = true;
+                input.disabled = true;
+                status.textContent = 'Saving…';
+                status.className = 'cell-status';
+
+                try {
+                    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/category`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-host-password': auth.getPassword()
+                        },
+                        body: JSON.stringify({ round: String(roundNum), oldCategory: category, newCategory: newName })
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            auth.resetToLocked();
+                            status.textContent = 'Host password was rejected — unlock again.';
+                        } else {
+                            status.textContent = (data.errors || ['Rename failed.']).join(' ');
+                        }
+                        status.className = 'cell-status error';
+                        saveBtn.disabled = false;
+                        input.disabled = false;
+                        return;
+                    }
+
+                    const gameRes = await fetch(`/api/games/${encodeURIComponent(gameId)}`, { cache: 'no-store' });
+                    gameData = await gameRes.json();
+                    renderRound(roundNum);
+                } catch (err) {
+                    status.textContent = 'Rename failed: ' + err.message;
+                    status.className = 'cell-status error';
+                    saveBtn.disabled = false;
+                    input.disabled = false;
+                }
+            });
+
+            return wrap;
+        }
+
         function renderRound(roundNum) {
             const container = document.getElementById('round' + roundNum + 'Grid');
             container.innerHTML = '';
@@ -546,10 +640,7 @@
                 const col = document.createElement('div');
                 col.className = 'category-column';
 
-                const header = document.createElement('div');
-                header.className = 'category-header';
-                header.textContent = cat; // textContent, not innerHTML — safe regardless of category content
-                col.appendChild(header);
+                col.appendChild(buildCategoryNameEditor(roundNum, cat));
 
                 const questions = roundData.questions[cat];
                 questions.forEach((q, idx) => {
@@ -568,6 +659,79 @@
             });
         }
 
+        function buildFinalJeopardyCategoryEditor() {
+            const wrap = document.createElement('div');
+            wrap.className = 'category-header';
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'category-name-input';
+            input.value = gameData.finalJeopardy.category;
+            wrap.appendChild(input);
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            wrap.appendChild(saveBtn);
+
+            const status = document.createElement('div');
+            status.className = 'cell-status';
+            wrap.appendChild(status);
+
+            saveBtn.addEventListener('click', async () => {
+                const newName = input.value.trim();
+                if (!newName || newName === gameData.finalJeopardy.category) return;
+
+                if (!auth.isUnlocked()) {
+                    status.textContent = 'Unlock with the host password first.';
+                    status.className = 'cell-status error';
+                    return;
+                }
+
+                saveBtn.disabled = true;
+                input.disabled = true;
+                status.textContent = 'Saving…';
+                status.className = 'cell-status';
+
+                const formData = new FormData();
+                formData.append('round', 'final');
+                formData.append('category', newName);
+
+                try {
+                    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/questions`, {
+                        method: 'POST',
+                        headers: { 'x-host-password': auth.getPassword() },
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            auth.resetToLocked();
+                            status.textContent = 'Host password was rejected — unlock again.';
+                        } else {
+                            status.textContent = (data.errors || ['Rename failed.']).join(' ');
+                        }
+                        status.className = 'cell-status error';
+                        saveBtn.disabled = false;
+                        input.disabled = false;
+                        return;
+                    }
+
+                    gameData.finalJeopardy.category = data.category;
+                    status.textContent = 'Saved.';
+                    status.className = 'cell-status success';
+                } catch (err) {
+                    status.textContent = 'Rename failed: ' + err.message;
+                    status.className = 'cell-status error';
+                } finally {
+                    saveBtn.disabled = false;
+                    input.disabled = false;
+                }
+            });
+
+            return wrap;
+        }
+
         function renderFinalJeopardy() {
             const container = document.getElementById('finalJeopardyCard');
             container.innerHTML = '';
@@ -577,10 +741,7 @@
                 return;
             }
 
-            const catLabel = document.createElement('div');
-            catLabel.className = 'fj-category';
-            catLabel.textContent = gameData.finalJeopardy.category;
-            container.appendChild(catLabel);
+            container.appendChild(buildFinalJeopardyCategoryEditor());
 
             container.appendChild(buildQuestionEditor({
                 roundValue: 'final',
@@ -592,7 +753,7 @@
             const pageBody = document.getElementById('pageBody');
 
             if (!gameId) {
-                pageBody.innerHTML = '<div class="empty-state">No game selected. Go back to <a href="upload.html">Upload &amp; Manage Games</a> and click "🖼️ Photos" on a saved game.</div>';
+                pageBody.innerHTML = '<div class="empty-state">No game selected. Go back to <a href="upload.html">Upload &amp; Manage Games</a> and click "✏️ Edit" on a saved game.</div>';
                 return;
             }
 

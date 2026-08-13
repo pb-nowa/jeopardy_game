@@ -175,6 +175,10 @@
             border-radius: 4px;
         }
 
+        .help-text a {
+            color: var(--text-secondary);
+        }
+
         .messages {
             margin-top: 15px;
         }
@@ -298,6 +302,7 @@
                 <label for="csvFile">CSV File</label>
                 <input type="file" id="csvFile" accept=".csv" required>
                 <div class="help-text">
+                    New to this? <a href="game-template.csv" download>⬇️ Download a blank CSV template</a> to fill in.<br>
                     Columns: <code>Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy</code>
                     (optional <code>Image URL</code> column, if you already have an image hosted somewhere — otherwise leave it
                     blank and attach photos afterward from the saved-games list below).
@@ -311,6 +316,20 @@
                 <button type="submit" id="uploadBtn" disabled>Upload Game</button>
             </form>
             <div class="messages" id="uploadMessages"></div>
+        </div>
+
+        <div class="panel">
+            <h2>Or Create a Game From Scratch</h2>
+            <form id="blankForm">
+                <label for="blankGameName">Game Name</label>
+                <input type="text" id="blankGameName" placeholder="e.g. Sarah's Birthday Jeopardy" required>
+                <div class="help-text">
+                    Starts with the same 3-round, 5-category, 5-question layout as an uploaded game, filled with
+                    placeholder text — you'll rename categories and fill in each question in the editor that opens next.
+                </div>
+                <button type="submit" id="blankBtn" disabled>Create Game</button>
+            </form>
+            <div class="messages" id="blankMessages"></div>
         </div>
 
         <div class="panel">
@@ -336,6 +355,7 @@
         function updateLockUI() {
             const indicator = document.getElementById('lockIndicator');
             const uploadBtn = document.getElementById('uploadBtn');
+            const blankBtn = document.getElementById('blankBtn');
             if (auth.isUnlocked()) {
                 indicator.textContent = '🔓 Unlocked';
                 indicator.classList.add('unlocked');
@@ -344,6 +364,7 @@
                 indicator.classList.remove('unlocked');
             }
             uploadBtn.disabled = !auth.isUnlocked();
+            blankBtn.disabled = !auth.isUnlocked();
             renderGames(lastGames);
         }
 
@@ -367,8 +388,8 @@
             }
         });
 
-        function showMessages(errors, type) {
-            const box = document.getElementById('uploadMessages');
+        function showMessages(errors, type, targetId) {
+            const box = document.getElementById(targetId || 'uploadMessages');
             box.innerHTML = '';
             (errors || []).forEach(msg => {
                 const div = document.createElement('div');
@@ -507,6 +528,49 @@
             } finally {
                 uploadBtn.disabled = !auth.isUnlocked();
                 uploadBtn.textContent = 'Upload Game';
+            }
+        });
+
+        document.getElementById('blankForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showMessages([], 'error', 'blankMessages');
+
+            const name = document.getElementById('blankGameName').value.trim();
+            if (!name) {
+                showMessages(['A game name is required.'], 'error', 'blankMessages');
+                return;
+            }
+
+            const blankBtn = document.getElementById('blankBtn');
+            blankBtn.disabled = true;
+            blankBtn.textContent = 'Creating…';
+
+            try {
+                const res = await fetch('/api/games/blank', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-host-password': auth.getPassword()
+                    },
+                    body: JSON.stringify({ name })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        auth.resetToLocked();
+                        showMessages(['Host password was rejected — please unlock again.'], 'error', 'blankMessages');
+                        return;
+                    }
+                    showMessages(data.errors || ['Failed to create game.'], 'error', 'blankMessages');
+                } else {
+                    window.location.href = 'edit-photos.html?id=' + encodeURIComponent(data.id);
+                }
+            } catch (err) {
+                showMessages(['Failed to create game: ' + err.message], 'error', 'blankMessages');
+            } finally {
+                blankBtn.disabled = !auth.isUnlocked();
+                blankBtn.textContent = 'Create Game';
             }
         });
 
