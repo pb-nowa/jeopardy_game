@@ -21,6 +21,7 @@ A real-time multi-device Jeopardy buzzer system with WebSocket support for seaml
    - Host controls: http://localhost:3000/host.html
    - Game board: http://localhost:3000/jeopardy.html
    - Upload/manage games: http://localhost:3000/upload.html
+   - Edit question photos: http://localhost:3000/edit-photos.html?id=&lt;game-id&gt; (linked from the saved-games list on the upload page)
 
 ## 📱 How to Play
 
@@ -79,14 +80,15 @@ A real-time multi-device Jeopardy buzzer system with WebSocket support for seaml
 - `GET /api/games/:id` - Fetch a specific uploaded game's board data
 - `POST /api/games/upload` - Upload a CSV game (requires `x-host-password` header, see below)
 - `POST /api/games/activate` - Make an uploaded game the active one (requires `x-host-password` header)
-- `POST /api/games/verify-password` - Checks whether a password is correct without performing any action (used by `/upload.html`'s "Unlock" button); requires `x-host-password` header
+- `POST /api/games/verify-password` - Checks whether a password is correct without performing any action (used by the "Unlock" button on `/upload.html` and `/edit-photos.html`); requires `x-host-password` header
+- `POST /api/games/:id/questions` - Attach/replace/remove a single question's photo and/or edit its hint text (requires `x-host-password` header, see "Attaching Photos to Questions" below)
 - All real-time communication via WebSocket events
 
 ## 📁 Uploading Custom Games (CSV)
 
 Visit `/upload.html` to upload a CSV of questions instead of hand-editing `hints.json`. You'll need the host password (see Configuration below) to upload or activate a game; anyone can view the saved-games list.
 
-**CSV columns**: `Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy` (an optional `Image URL` column is also accepted — reserved for an upcoming photo-question feature and currently unused).
+**CSV columns**: `Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy` (an optional `Image URL` column is also accepted, if you already have images hosted somewhere — otherwise leave it blank and attach photos afterward, see below).
 
 - `Name` is the category, `Difficulty` (1-5) sets which dollar-value row the question lands on.
 - `"Round, order"` is a single column holding `"<round>,<order>"`, e.g. `"1,3"` means round 1, 3rd category from the left. Each round you use needs exactly 5 distinct categories (orders 1-5) with exactly 5 questions each (difficulties 1-5) — rounds 1, 2, and 3 are each optional, but whichever you include must be complete.
@@ -96,6 +98,14 @@ Visit `/upload.html` to upload a CSV of questions instead of hand-editing `hints
 After uploading, click **Activate** on the game in the saved-games list — the game board (`jeopardy.html`) picks up the change live via WebSocket, no refresh needed. Team scores are not affected by switching games; use the host's "Reset Team Scores" action separately if you want a clean scoreboard for a new match.
 
 Clicking **Unlock** on `/upload.html` actually verifies the password against the server before showing "Unlocked" — a wrong password shows an error instead of a false-positive unlocked state, and if a password is ever rejected mid-session (e.g. it was changed on the server), the UI drops back to locked automatically.
+
+## 📷 Attaching Photos to Questions
+
+After a CSV is uploaded, click **🖼️ Photos** next to it in the saved-games list on `/upload.html` to open its photo editor. Each question shows an editable hint textarea, a current-photo preview (or "No image"), a file picker, and Save/Remove buttons — attach or replace a photo, or edit/blank the hint text, one question at a time. Hint text is optional: leave it blank and only the photo shows; fill it in alongside a photo and both show.
+
+If the game you're editing is currently **active** on the board, changes appear live — `jeopardy.html` picks them up over the same WebSocket connection used for switching games, without a manual refresh. Photo uploads (JPEG/PNG/WebP/GIF, up to 8MB) are resized on upload (capped at 1600px wide) so a full-size phone photo doesn't ship straight to the shared screen.
+
+Photos are stored via [Cloudinary](https://cloudinary.com) when `CLOUDINARY_URL` is set, otherwise on local disk under `uploads/` — same fallback pattern as the Redis/file game storage above, including the same ephemeral-disk caveat on Render without Cloudinary configured.
 
 ## 🔖 Checking Which Version Is Deployed
 
@@ -114,6 +124,13 @@ Copy `.env.example` to `.env` and fill in real values for local development — 
   4. Set both as environment variables (in `.env` locally, or in Render's dashboard for production).
 
   If these aren't set, the app automatically falls back to storing uploaded games as JSON files under `games/` (today's behavior) — no setup required, just less durable on ephemeral hosts.
+
+- **`CLOUDINARY_URL`** — optional. When set, question photos uploaded via `/edit-photos.html` are stored in [Cloudinary](https://cloudinary.com) instead of local disk (`uploads/`), so they survive redeploys on hosts with ephemeral storage. Get this free from the Cloudinary console:
+  1. Sign up at [console.cloudinary.com](https://console.cloudinary.com) (free tier, no credit card).
+  2. The dashboard homepage shows an "API Environment variable" field in the format `cloudinary://<api_key>:<api_secret>@<cloud_name>` — copy that whole string.
+  3. Set it as `CLOUDINARY_URL` (in `.env` locally, or in Render's dashboard for production). The Cloudinary SDK reads this automatically — no other configuration needed.
+
+  If unset, the app falls back to storing photos as files under `uploads/` — no setup required, just less durable on ephemeral hosts (same tradeoff as the Redis/file game storage above).
 
 ### Server Settings (server.js):
 - **Port**: 3000 (or environment PORT)
@@ -137,9 +154,10 @@ This app needs a host that keeps a Node process running persistently (in-memory 
 4. **Start Command**: `npm start`
 5. Under **Environment**, add `HOST_PASSWORD` set to a password of your choice — the server will refuse to start without it.
 6. Also add `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (see above) so uploaded games persist across redeploys — strongly recommended for anything beyond a one-off local test.
-7. Deploy. Render assigns a public URL and sets `PORT` automatically (already handled by `server.js`).
+7. Also add `CLOUDINARY_URL` (see above) so question photos persist across redeploys too.
+8. Deploy. Render assigns a public URL and sets `PORT` automatically (already handled by `server.js`).
 
-**⚠️ Storage caveat (only if you skip Redis)**: without the Upstash env vars set, uploaded games fall back to a `games/` folder on local disk. Render's standard (non-Persistent-Disk) tier wipes that folder on every redeploy — fine for a single party (you won't redeploy mid-event), but games won't survive across multiple separate deploys. Setting up the free Upstash Redis database above avoids this entirely.
+**⚠️ Storage caveat (only if you skip Redis/Cloudinary)**: without the Upstash env vars set, uploaded games fall back to a `games/` folder on local disk; without `CLOUDINARY_URL` set, photos fall back to an `uploads/` folder. Render's standard (non-Persistent-Disk) tier wipes both on every redeploy — fine for a single party (you won't redeploy mid-event), but games/photos won't survive across multiple separate deploys. Setting up the free Upstash Redis database and Cloudinary account above avoids this entirely.
 
 ## 🎯 Features
 
@@ -209,12 +227,18 @@ npm run dev  # Uses nodemon for auto-restart
 ├── host.html          # Host control panel
 ├── jeopardy.html      # Game board
 ├── upload.html        # CSV game upload / activation
+├── edit-photos.html   # Attach/replace/remove photos on individual questions
+├── hostAuth.js         # Shared password-gate logic (upload.html + edit-photos.html)
 ├── lib/csvToGameData.js  # CSV parsing + validation
-├── lib/gameStore.js    # Picks Redis vs local-disk storage backend
-├── lib/fileGameStore.js   # Local-disk backend (games/*.json)
-├── lib/redisGameStore.js  # Upstash Redis backend
-├── routes/games.js    # Upload/list/activate/fetch API for uploaded games
+├── lib/gameStore.js    # Picks Redis vs local-disk storage backend (games)
+├── lib/fileGameStore.js   # Local-disk game backend (games/*.json)
+├── lib/redisGameStore.js  # Upstash Redis game backend
+├── lib/imageStore.js    # Picks Cloudinary vs local-disk storage backend (photos)
+├── lib/cloudinaryImageStore.js  # Cloudinary photo backend
+├── lib/localImageStore.js       # Local-disk photo backend (uploads/*)
+├── routes/games.js    # Upload/list/activate/fetch/edit API for uploaded games
 ├── games/              # Local-disk game storage, used when Redis isn't configured (gitignored)
+├── uploads/             # Local-disk photo storage, used when Cloudinary isn't configured (gitignored)
 ├── .env.example        # Template for local environment variables
 └── package.json       # Node.js dependencies
 ```

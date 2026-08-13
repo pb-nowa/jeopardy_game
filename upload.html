@@ -299,7 +299,8 @@
                 <input type="file" id="csvFile" accept=".csv" required>
                 <div class="help-text">
                     Columns: <code>Name, Difficulty, Question, Answer, "Round, order", isDoubleJeopardy</code>
-                    (optional <code>Image URL</code> column, reserved for an upcoming photo-question feature — leave blank for now).
+                    (optional <code>Image URL</code> column, if you already have an image hosted somewhere — otherwise leave it
+                    blank and attach photos afterward from the saved-games list below).
                     <code>Round, order</code> is like <code>"1,3"</code> (round 1, 3rd category) for regular questions.
                     For Final Jeopardy, put the literal text <code>Final Jeopardy</code> in that column, with the category
                     in <code>Name</code>, the clue in <code>Question</code>, and the response in <code>Answer</code>.
@@ -326,52 +327,24 @@
         </div>
     </div>
 
+    <script src="hostAuth.js"></script>
     <script>
-        let hostPassword = '';
-        let unlocked = false; // only true once the password has been confirmed against the server
         let activeGameId = null;
 
-        function isUnlocked() {
-            return unlocked;
-        }
+        const auth = initHostAuth({ onChange: updateLockUI });
 
         function updateLockUI() {
             const indicator = document.getElementById('lockIndicator');
             const uploadBtn = document.getElementById('uploadBtn');
-            if (isUnlocked()) {
+            if (auth.isUnlocked()) {
                 indicator.textContent = '🔓 Unlocked';
                 indicator.classList.add('unlocked');
             } else {
                 indicator.textContent = '🔒 Locked';
                 indicator.classList.remove('unlocked');
             }
-            uploadBtn.disabled = !isUnlocked();
+            uploadBtn.disabled = !auth.isUnlocked();
             renderGames(lastGames);
-        }
-
-        // Confirms a password against the server rather than trusting whatever was
-        // typed — returns true/false, never throws (network errors count as "not verified").
-        async function verifyPassword(candidate) {
-            try {
-                const res = await fetch('/api/games/verify-password', {
-                    method: 'POST',
-                    headers: { 'x-host-password': candidate }
-                });
-                return res.ok;
-            } catch (err) {
-                return false;
-            }
-        }
-
-        // Called whenever a protected request comes back 401 (e.g. the password was
-        // changed server-side, or a stale one was cached) — drops back to locked
-        // instead of silently leaving a broken "Unlocked" state on screen.
-        function resetToLocked(message) {
-            hostPassword = '';
-            unlocked = false;
-            sessionStorage.removeItem('hostPassword');
-            updateLockUI();
-            if (message) showMessages([message], 'error');
         }
 
         document.getElementById('unlockBtn').addEventListener('click', async () => {
@@ -382,37 +355,17 @@
             unlockBtn.disabled = true;
             unlockBtn.textContent = 'Checking…';
 
-            const ok = await verifyPassword(value);
+            const ok = await auth.unlock(value);
             unlockBtn.disabled = false;
             unlockBtn.textContent = 'Unlock';
 
             if (ok) {
-                hostPassword = value;
-                unlocked = true;
-                sessionStorage.setItem('hostPassword', hostPassword);
                 document.getElementById('passwordInput').value = '';
                 showMessages([], 'error');
             } else {
-                unlocked = false;
                 showMessages(['Incorrect password.'], 'error');
             }
-            updateLockUI();
         });
-
-        // Silently re-verify a cached password from a previous visit, rather than
-        // trusting its mere presence in sessionStorage.
-        (async function restoreSession() {
-            const cached = sessionStorage.getItem('hostPassword');
-            if (!cached) return;
-            const ok = await verifyPassword(cached);
-            if (ok) {
-                hostPassword = cached;
-                unlocked = true;
-            } else {
-                sessionStorage.removeItem('hostPassword');
-            }
-            updateLockUI();
-        })();
 
         function showMessages(errors, type) {
             const box = document.getElementById('uploadMessages');
@@ -462,7 +415,7 @@
                 const uploadedDate = new Date(game.uploadedAt).toLocaleString();
                 const actionHtml = isActive
                     ? '<span class="active-badge">✅ Active</span>'
-                    : `<button class="activate-btn" data-game-id="${game.id}" ${isUnlocked() ? '' : 'disabled title="Unlock with the host password to activate"'}>Activate</button>`;
+                    : `<button class="activate-btn" data-game-id="${game.id}" ${auth.isUnlocked() ? '' : 'disabled title="Unlock with the host password to activate"'}>Activate</button>`;
 
                 return `
                     <div class="game-row ${isActive ? 'active' : ''}">
@@ -470,6 +423,7 @@
                             <div class="game-name">${game.name}</div>
                             <div class="game-meta">Uploaded ${uploadedDate}</div>
                         </div>
+                        <a class="activate-btn" style="text-decoration:none; display:inline-block;" href="edit-photos.html?id=${encodeURIComponent(game.id)}">🖼️ Photos</a>
                         ${actionHtml}
                     </div>
                 `;
@@ -486,14 +440,15 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'x-host-password': hostPassword
+                        'x-host-password': auth.getPassword()
                     },
                     body: JSON.stringify({ gameId })
                 });
                 const data = await res.json();
                 if (!res.ok) {
                     if (res.status === 401) {
-                        resetToLocked('Host password was rejected — please unlock again.');
+                        auth.resetToLocked();
+                        showMessages(['Host password was rejected — please unlock again.'], 'error');
                         return;
                     }
                     showMessages(data.errors || ['Failed to activate game.'], 'error');
@@ -530,14 +485,15 @@
             try {
                 const res = await fetch('/api/games/upload', {
                     method: 'POST',
-                    headers: { 'x-host-password': hostPassword },
+                    headers: { 'x-host-password': auth.getPassword() },
                     body: formData
                 });
                 const data = await res.json();
 
                 if (!res.ok) {
                     if (res.status === 401) {
-                        resetToLocked('Host password was rejected — please unlock again.');
+                        auth.resetToLocked();
+                        showMessages(['Host password was rejected — please unlock again.'], 'error');
                         return;
                     }
                     showMessages(data.errors || ['Upload failed.'], 'error');
@@ -549,7 +505,7 @@
             } catch (err) {
                 showMessages(['Upload failed: ' + err.message], 'error');
             } finally {
-                uploadBtn.disabled = !isUnlocked();
+                uploadBtn.disabled = !auth.isUnlocked();
                 uploadBtn.textContent = 'Upload Game';
             }
         });

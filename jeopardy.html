@@ -633,6 +633,7 @@
         let currentQuestionValue = 0;
         let currentRound = 1;
         let currentActiveGameId = null; // id of the uploaded game currently loaded, or null for the default hints.json
+        let currentActiveGameContentVersion = 0; // bumped server-side when a question in the active game is edited
 
         // Fetches a specific uploaded game's data, falling back to the bundled hints.json
         // when no game is active (or the active one fails to load) — preserves today's
@@ -656,6 +657,7 @@
                 const stateRes = await fetch('/api/gamestate', { cache: 'no-store' });
                 const state = await stateRes.json();
                 currentActiveGameId = (state && state.activeGameId) || null;
+                currentActiveGameContentVersion = (state && state.activeGameContentVersion) || 0;
                 gameData = await fetchGameData(currentActiveGameId);
             } catch (err) {
                 console.error('Failed to load game data:', err);
@@ -675,19 +677,26 @@
             loadJSON();
         }
 
-        // Called when the host activates a different uploaded game mid-session.
-        async function reloadActiveGame(newActiveGameId) {
+        // Called when the host activates a different uploaded game, OR edits a photo/hint
+        // within the currently active one, mid-session. isGameSwitch distinguishes the two:
+        // switching games jumps back to round 1 (it's a new game); a content-only edit
+        // (same game, e.g. a newly-attached photo) just silently rebuilds the boards so it
+        // doesn't yank the host away from whatever round they're mid-party on.
+        async function reloadActiveGame(newActiveGameId, newContentVersion, isGameSwitch) {
             try {
                 currentActiveGameId = newActiveGameId;
+                currentActiveGameContentVersion = newContentVersion;
                 gameData = await fetchGameData(newActiveGameId);
 
                 createBoard(1, 100);
                 createBoard(2, 200);
                 createBoard(3, 300);
-                showRound(1);
+                if (isGameSwitch) {
+                    showRound(1);
+                }
                 loadJSON();
 
-                console.log('Loaded new active game:', newActiveGameId);
+                console.log('Loaded active game:', newActiveGameId, 'version', newContentVersion);
             } catch (err) {
                 console.error('Failed to reload active game:', err);
             }
@@ -775,6 +784,9 @@
                         if (questionData.doubleJeopardy) {
                             q.dataset.doubleJeopardy = questionData.doubleJeopardy.toString();
                         }
+                        if (questionData.imageUrl) {
+                            q.dataset.imageUrl = questionData.imageUrl;
+                        }
                     } else {
                         q.dataset.hint = "No question data";
                         q.dataset.answer = "No answer data";
@@ -784,6 +796,32 @@
                     board.appendChild(q);
                 });
             }
+        }
+
+        // Escapes a value before it's interpolated into an HTML attribute (src="...") via
+        // innerHTML — these URLs are server-generated (Cloudinary or our own /uploads/),
+        // not user-typed, so this is defense in depth rather than a known-exploitable gap.
+        function escapeHtmlAttr(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // Builds the hint-view markup shared by showModal(), the Daily Double -> hint
+        // transition, and the Final Jeopardy hint step: an image (if attached) followed
+        // by hint text (if any — hint is optional once an image is attached).
+        function renderHintContent(hint, imageUrl) {
+            let html = '';
+            if (imageUrl) {
+                html += `<img src="${escapeHtmlAttr(imageUrl)}" style="max-width:100%; max-height:50vh; display:block; margin:0 auto 20px auto; border-radius:10px;">`;
+            }
+            if (hint) {
+                html += hint;
+            }
+            return html;
         }
 
         function showModal(elem) {
@@ -796,7 +834,7 @@
                 showingDoubleJeopardy = true;
                 modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button><div style="font-size: clamp(2rem, 8vw, 4rem); color: gold; font-weight: bold; text-align: center; padding: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); line-height: 1.2; word-wrap: break-word; max-width: 100%; box-sizing: border-box;">DAILY DOUBLE</div>';
             } else {
-                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + renderHintContent(currentContent.hint, currentContent.imageUrl);
             }
             
             modal.style.display = "flex";
@@ -830,7 +868,7 @@
             if (showingDoubleJeopardy) {
                 // Transition from "DOUBLE JEOPARDY" to showing the hint
                 showingDoubleJeopardy = false;
-                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.hint;
+                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + renderHintContent(currentContent.hint, currentContent.imageUrl);
             } else if (!showingAnswer) {
                 modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
                 showingAnswer = true;
@@ -848,7 +886,7 @@
                 finalJeopardyState = "category";
                 timerSection.style.display = "none";
             } else if (finalJeopardyState === "category") {
-                finalText.innerHTML = "Final Jeopardy Hint:<br><br>" + gameData.finalJeopardy.hint;
+                finalText.innerHTML = "Final Jeopardy Hint:<br><br>" + renderHintContent(gameData.finalJeopardy.hint, gameData.finalJeopardy.imageUrl);
                 finalJeopardyState = "hint";
                 timerSection.style.display = "block";
                 // Automatically start the 30-second timer
@@ -1295,12 +1333,17 @@
                     console.log('teamScores in gameState:', gameState ? gameState.teamScores : 'undefined');
                     updateTeamScoresFromServer(gameState);
 
-                    // Host activated a different uploaded game (e.g. from upload.html) —
-                    // reload the board. Team scores are intentionally left untouched;
-                    // switching question sets isn't the same as starting a new match.
+                    // Host activated a different uploaded game (e.g. from upload.html), or
+                    // edited a photo/hint within the currently active one (e.g. from
+                    // edit-photos.html) — reload the board either way. Team scores are
+                    // intentionally left untouched; switching/editing question sets isn't
+                    // the same as starting a new match.
                     const newActiveGameId = (gameState && gameState.activeGameId) || null;
-                    if (newActiveGameId !== currentActiveGameId) {
-                        reloadActiveGame(newActiveGameId);
+                    const newContentVersion = (gameState && gameState.activeGameContentVersion) || 0;
+                    const gameSwitched = newActiveGameId !== currentActiveGameId;
+                    const contentChanged = newContentVersion !== currentActiveGameContentVersion;
+                    if (gameSwitched || contentChanged) {
+                        reloadActiveGame(newActiveGameId, newContentVersion, gameSwitched);
                     }
                 });
                 

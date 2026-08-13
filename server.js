@@ -58,6 +58,7 @@ let gameState = {
     currentQuestion: null,
     currentQuestionValue: 0, // Current question point value
     activeGameId: null, // id of the uploaded game currently loaded on the board (routes/games.js)
+    activeGameContentVersion: 0, // bumped whenever a question in the active game is edited, so jeopardy.html knows to reload even when activeGameId itself hasn't changed
     teamScores: {
         1: 0,
         2: 0,

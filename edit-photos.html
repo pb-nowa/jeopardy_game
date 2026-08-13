@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Buzzer - Edit Photos</title>
+    <style>
+        :root {
+            --bg-primary: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --bg-secondary: rgba(0, 31, 77, 0.9);
+            --bg-tertiary: rgba(255, 255, 255, 0.1);
+            --bg-tertiary-hover: rgba(255, 255, 255, 0.2);
+
+            --text-primary: white;
+            --text-secondary: #ffd700;
+            --text-muted: #b8d4ff;
+
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --input-text: #333;
+            --input-focus-shadow: rgba(255, 215, 0, 0.5);
+
+            --btn-primary-bg: linear-gradient(45deg, #ffd700, #ffed4a);
+            --btn-primary-text: #333;
+            --btn-primary-shadow: rgba(255, 215, 0, 0.4);
+            --btn-secondary-bg: rgba(255, 255, 255, 0.1);
+            --btn-secondary-text: white;
+            --btn-secondary-border: rgba(255, 255, 255, 0.3);
+            --btn-disabled-bg: #666;
+            --btn-disabled-text: #999;
+
+            --error-text: #ff6b6b;
+            --error-bg: rgba(255, 107, 107, 0.1);
+            --success-text: #66ff66;
+            --success-bg: rgba(102, 255, 102, 0.1);
+
+            --border-subtle: rgba(255, 255, 255, 0.2);
+            --active-border: #ffd700;
+            --active-bg: rgba(255, 215, 0, 0.15);
+
+            --shadow-primary: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 25px;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--shadow-primary);
+            margin-bottom: 20px;
+        }
+
+        .panel h2 {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        button {
+            padding: 10px 18px;
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--btn-primary-shadow);
+        }
+
+        button:disabled {
+            background: var(--btn-disabled-bg);
+            color: var(--btn-disabled-text);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input[type="password"] {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            background: var(--input-bg);
+            color: var(--input-text);
+        }
+
+        .password-status {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .lock-indicator {
+            font-size: 0.9em;
+            color: var(--text-muted);
+        }
+
+        .lock-indicator.unlocked {
+            color: var(--success-text);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+        }
+
+        .round-panel {
+            display: none;
+        }
+
+        .round-panel.active {
+            display: block;
+        }
+
+        .round-grid {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+        }
+
+        .category-column {
+            flex: 1;
+            min-width: 220px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .category-header {
+            background: var(--bg-tertiary);
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.9em;
+            word-wrap: break-word;
+        }
+
+        .question-cell, .fj-card {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .cell-value {
+            font-weight: bold;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .hint-textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .image-preview-wrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80px;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 100px;
+            border-radius: 6px;
+        }
+
+        .no-image {
+            color: var(--text-muted);
+            font-size: 0.8em;
+            font-style: italic;
+        }
+
+        input[type="file"] {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .cell-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .cell-actions button {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+        }
+
+        .cell-remove-btn {
+            background: var(--btn-secondary-bg);
+            color: var(--btn-secondary-text);
+            border: 2px solid var(--btn-secondary-border);
+        }
+
+        .cell-status {
+            font-size: 0.75em;
+            min-height: 1em;
+        }
+
+        .cell-status.error {
+            color: var(--error-text);
+        }
+
+        .cell-status.success {
+            color: var(--success-text);
+        }
+
+        .fj-card {
+            max-width: 400px;
+        }
+
+        .fj-category {
+            font-weight: bold;
+            color: var(--text-secondary);
+            font-size: 1.1em;
+            text-align: center;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 30px;
+        }
+
+        .empty-state a {
+            color: var(--text-secondary);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            padding: 10px 16px;
+            border: 2px solid var(--border-subtle);
+            border-radius: 10px;
+        }
+
+        .nav-links a:hover {
+            background: var(--bg-tertiary-hover);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🎯 JEOPARDY</div>
+        <div class="subtitle" id="gameTitle">Editing Photos</div>
+
+        <div class="panel">
+            <h2>Host Password</h2>
+            <div class="password-status">
+                <input type="password" id="passwordInput" placeholder="Enter host password">
+                <button id="unlockBtn" type="button">Unlock</button>
+                <span class="lock-indicator" id="lockIndicator">🔒 Locked</span>
+            </div>
+        </div>
+
+        <div id="pageBody" class="panel">
+            <div class="tabs">
+                <button class="tab-btn active" data-round="1">Round 1</button>
+                <button class="tab-btn" data-round="2">Round 2</button>
+                <button class="tab-btn" data-round="3">Round 3</button>
+                <button class="tab-btn" data-round="final">Final Jeopardy</button>
+            </div>
+
+            <div class="round-panel active" id="roundPanel1"><div class="round-grid" id="round1Grid"></div></div>
+            <div class="round-panel" id="roundPanel2"><div class="round-grid" id="round2Grid"></div></div>
+            <div class="round-panel" id="roundPanel3"><div class="round-grid" id="round3Grid"></div></div>
+            <div class="round-panel" id="roundPanelfinal"><div id="finalJeopardyCard"></div></div>
+        </div>
+
+        <div class="nav-links">
+            <a href="upload.html">📁 Back to Upload &amp; Manage Games</a>
+            <a href="jeopardy.html">🎯 Game Board</a>
+        </div>
+    </div>
+
+    <script src="hostAuth.js"></script>
+    <script>
+        const params = new URLSearchParams(location.search);
+        const gameId = params.get('id');
+
+        let gameData = null;
+
+        const auth = initHostAuth({ onChange: updateLockUI });
+
+        function updateLockUI() {
+            const indicator = document.getElementById('lockIndicator');
+            if (auth.isUnlocked()) {
+                indicator.textContent = '🔓 Unlocked';
+                indicator.classList.add('unlocked');
+            } else {
+                indicator.textContent = '🔒 Locked';
+                indicator.classList.remove('unlocked');
+            }
+        }
+
+        document.getElementById('unlockBtn').addEventListener('click', async () => {
+            const value = document.getElementById('passwordInput').value.trim();
+            if (!value) return;
+
+            const unlockBtn = document.getElementById('unlockBtn');
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = 'Checking…';
+
+            const ok = await auth.unlock(value);
+            unlockBtn.disabled = false;
+            unlockBtn.textContent = 'Unlock';
+
+            if (ok) {
+                document.getElementById('passwordInput').value = '';
+            } else {
+                alert('Incorrect password.');
+            }
+        });
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.round-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('roundPanel' + btn.dataset.round).classList.add('active');
+            });
+        });
+
+        const VALUE_MULTIPLIER = { '1': 100, '2': 200, '3': 300 };
+
+        // Shared editor for both regular questions and Final Jeopardy. `category`/
+        // `difficulty` are omitted when roundValue==='final'. `category` is always the
+        // exact string returned by GET /api/games/:id — never retyped or trimmed, since
+        // some CSV-parsed category names contain characters (even literal quote marks)
+        // that must match the stored object key exactly.
+        function buildQuestionEditor({ roundValue, category, difficulty, question, valueLabel }) {
+            const cell = document.createElement('div');
+            cell.className = roundValue === 'final' ? 'fj-card' : 'question-cell';
+
+            if (valueLabel) {
+                const label = document.createElement('div');
+                label.className = 'cell-value';
+                label.textContent = valueLabel;
+                cell.appendChild(label);
+            }
+
+            const hintArea = document.createElement('textarea');
+            hintArea.className = 'hint-textarea';
+            hintArea.value = question.hint || '';
+            hintArea.placeholder = '(blank = image only, no hint text)';
+            cell.appendChild(hintArea);
+
+            const imgWrap = document.createElement('div');
+            imgWrap.className = 'image-preview-wrap';
+            cell.appendChild(imgWrap);
+
+            function renderPreview() {
+                imgWrap.innerHTML = '';
+                if (question.imageUrl) {
+                    const img = document.createElement('img');
+                    img.src = question.imageUrl;
+                    img.className = 'image-preview';
+                    imgWrap.appendChild(img);
+                } else {
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'no-image';
+                    placeholder.textContent = 'No image';
+                    imgWrap.appendChild(placeholder);
+                }
+            }
+            renderPreview();
+
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
+            cell.appendChild(fileInput);
+
+            const actions = document.createElement('div');
+            actions.className = 'cell-actions';
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            const removeBtn = document.createElement('button');
+            removeBtn.textContent = 'Remove Photo';
+            removeBtn.className = 'cell-remove-btn';
+            actions.appendChild(saveBtn);
+            actions.appendChild(removeBtn);
+            cell.appendChild(actions);
+
+            const status = document.createElement('div');
+            status.className = 'cell-status';
+            cell.appendChild(status);
+
+            function setBusy(busy) {
+                saveBtn.disabled = busy;
+                removeBtn.disabled = busy;
+                fileInput.disabled = busy;
+                hintArea.disabled = busy;
+            }
+
+            async function submitUpdate({ file, removeImage }) {
+                if (!auth.isUnlocked()) {
+                    status.textContent = 'Unlock with the host password first.';
+                    status.className = 'cell-status error';
+                    return;
+                }
+
+                setBusy(true);
+                status.textContent = 'Saving…';
+                status.className = 'cell-status';
+
+                const formData = new FormData();
+                formData.append('round', roundValue);
+                if (roundValue !== 'final') {
+                    formData.append('category', category);
+                    formData.append('difficulty', String(difficulty));
+                }
+                formData.append('hint', hintArea.value);
+                if (file) formData.append('image', file);
+                if (removeImage) formData.append('removeImage', 'true');
+
+                try {
+                    const res = await fetch(`/api/games/${encodeURIComponent(gameId)}/questions`, {
+                        method: 'POST',
+                        headers: { 'x-host-password': auth.getPassword() },
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        if (res.status === 401) {
+                            auth.resetToLocked();
+                            status.textContent = 'Host password was rejected — unlock again.';
+                        } else {
+                            status.textContent = (data.errors || ['Save failed.']).join(' ');
+                        }
+                        status.className = 'cell-status error';
+                        return;
+                    }
+
+                    question.hint = data.hint;
+                    question.imageUrl = data.imageUrl;
+                    question.imagePublicId = data.imagePublicId;
+                    renderPreview();
+                    fileInput.value = '';
+                    status.textContent = 'Saved.';
+                    status.className = 'cell-status success';
+                } catch (err) {
+                    status.textContent = 'Save failed: ' + err.message;
+                    status.className = 'cell-status error';
+                } finally {
+                    setBusy(false);
+                }
+            }
+
+            saveBtn.addEventListener('click', () => {
+                submitUpdate({ file: fileInput.files[0] });
+            });
+
+            removeBtn.addEventListener('click', () => {
+                submitUpdate({ removeImage: true });
+            });
+
+            return cell;
+        }
+
+        function renderRound(roundNum) {
+            const container = document.getElementById('round' + roundNum + 'Grid');
+            container.innerHTML = '';
+
+            const roundData = gameData['round' + roundNum];
+            const categories = roundData && roundData.questions ? Object.keys(roundData.questions) : [];
+
+            if (categories.length === 0) {
+                container.innerHTML = '<div class="empty-state">No categories in this round.</div>';
+                return;
+            }
+
+            categories.forEach(cat => {
+                const col = document.createElement('div');
+                col.className = 'category-column';
+
+                const header = document.createElement('div');
+                header.className = 'category-header';
+                header.textContent = cat; // textContent, not innerHTML — safe regardless of category content
+                col.appendChild(header);
+
+                const questions = roundData.questions[cat];
+                questions.forEach((q, idx) => {
+                    const difficulty = idx + 1;
+                    const valueLabel = '$' + (difficulty * VALUE_MULTIPLIER[String(roundNum)]);
+                    col.appendChild(buildQuestionEditor({
+                        roundValue: String(roundNum),
+                        category: cat,
+                        difficulty,
+                        question: q,
+                        valueLabel
+                    }));
+                });
+
+                container.appendChild(col);
+            });
+        }
+
+        function renderFinalJeopardy() {
+            const container = document.getElementById('finalJeopardyCard');
+            container.innerHTML = '';
+
+            if (!gameData.finalJeopardy || !gameData.finalJeopardy.category) {
+                container.innerHTML = '<div class="empty-state">This game has no Final Jeopardy question.</div>';
+                return;
+            }
+
+            const catLabel = document.createElement('div');
+            catLabel.className = 'fj-category';
+            catLabel.textContent = gameData.finalJeopardy.category;
+            container.appendChild(catLabel);
+
+            container.appendChild(buildQuestionEditor({
+                roundValue: 'final',
+                question: gameData.finalJeopardy
+            }));
+        }
+
+        async function loadGame() {
+            const pageBody = document.getElementById('pageBody');
+
+            if (!gameId) {
+                pageBody.innerHTML = '<div class="empty-state">No game selected. Go back to <a href="upload.html">Upload &amp; Manage Games</a> and click "🖼️ Photos" on a saved game.</div>';
+                return;
+            }
+
+            try {
+                const [gamesListRes, gameRes] = await Promise.all([
+                    fetch('/api/games', { cache: 'no-store' }),
+                    fetch(`/api/games/${encodeURIComponent(gameId)}`, { cache: 'no-store' })
+                ]);
+
+                if (!gameRes.ok) {
+                    pageBody.innerHTML = '<div class="empty-state">Game not found. Go back to <a href="upload.html">Upload &amp; Manage Games</a>.</div>';
+                    return;
+                }
+
+                gameData = await gameRes.json();
+                const list = gamesListRes.ok ? await gamesListRes.json() : [];
+                const entry = list.find(g => g.id === gameId);
+                document.getElementById('gameTitle').textContent = 'Editing Photos: ' + (entry ? entry.name : gameId);
+
+                renderRound(1);
+                renderRound(2);
+                renderRound(3);
+                renderFinalJeopardy();
+            } catch (err) {
+                pageBody.innerHTML = '<div class="empty-state">Failed to load game: ' + err.message + '</div>';
+            }
+        }
+
+        updateLockUI();
+        loadGame();
+    </script>
+</body>
+</html>
