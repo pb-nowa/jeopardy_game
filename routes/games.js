@@ -36,6 +36,12 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
         next();
     }
 
+    // Lets upload.html confirm a typed password is actually correct before showing
+    // "Unlocked" in the UI, instead of just trusting whatever was typed.
+    router.post('/verify-password', requireHostPassword, (req, res) => {
+        res.json({ ok: true });
+    });
+
     router.post('/upload', requireHostPassword, (req, res) => {
         upload.single('csv')(req, res, async (uploadErr) => {
             if (uploadErr) {

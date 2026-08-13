@@ -327,11 +327,12 @@
     </div>
 
     <script>
-        let hostPassword = sessionStorage.getItem('hostPassword') || '';
+        let hostPassword = '';
+        let unlocked = false; // only true once the password has been confirmed against the server
         let activeGameId = null;
 
         function isUnlocked() {
-            return !!hostPassword;
+            return unlocked;
         }
 
         function updateLockUI() {
@@ -348,14 +349,70 @@
             renderGames(lastGames);
         }
 
-        document.getElementById('unlockBtn').addEventListener('click', () => {
+        // Confirms a password against the server rather than trusting whatever was
+        // typed — returns true/false, never throws (network errors count as "not verified").
+        async function verifyPassword(candidate) {
+            try {
+                const res = await fetch('/api/games/verify-password', {
+                    method: 'POST',
+                    headers: { 'x-host-password': candidate }
+                });
+                return res.ok;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        // Called whenever a protected request comes back 401 (e.g. the password was
+        // changed server-side, or a stale one was cached) — drops back to locked
+        // instead of silently leaving a broken "Unlocked" state on screen.
+        function resetToLocked(message) {
+            hostPassword = '';
+            unlocked = false;
+            sessionStorage.removeItem('hostPassword');
+            updateLockUI();
+            if (message) showMessages([message], 'error');
+        }
+
+        document.getElementById('unlockBtn').addEventListener('click', async () => {
             const value = document.getElementById('passwordInput').value.trim();
             if (!value) return;
-            hostPassword = value;
-            sessionStorage.setItem('hostPassword', hostPassword);
-            document.getElementById('passwordInput').value = '';
+
+            const unlockBtn = document.getElementById('unlockBtn');
+            unlockBtn.disabled = true;
+            unlockBtn.textContent = 'Checking…';
+
+            const ok = await verifyPassword(value);
+            unlockBtn.disabled = false;
+            unlockBtn.textContent = 'Unlock';
+
+            if (ok) {
+                hostPassword = value;
+                unlocked = true;
+                sessionStorage.setItem('hostPassword', hostPassword);
+                document.getElementById('passwordInput').value = '';
+                showMessages([], 'error');
+            } else {
+                unlocked = false;
+                showMessages(['Incorrect password.'], 'error');
+            }
             updateLockUI();
         });
+
+        // Silently re-verify a cached password from a previous visit, rather than
+        // trusting its mere presence in sessionStorage.
+        (async function restoreSession() {
+            const cached = sessionStorage.getItem('hostPassword');
+            if (!cached) return;
+            const ok = await verifyPassword(cached);
+            if (ok) {
+                hostPassword = cached;
+                unlocked = true;
+            } else {
+                sessionStorage.removeItem('hostPassword');
+            }
+            updateLockUI();
+        })();
 
         function showMessages(errors, type) {
             const box = document.getElementById('uploadMessages');
@@ -435,6 +492,10 @@
                 });
                 const data = await res.json();
                 if (!res.ok) {
+                    if (res.status === 401) {
+                        resetToLocked('Host password was rejected — please unlock again.');
+                        return;
+                    }
                     showMessages(data.errors || ['Failed to activate game.'], 'error');
                     return;
                 }
@@ -475,6 +536,10 @@
                 const data = await res.json();
 
                 if (!res.ok) {
+                    if (res.status === 401) {
+                        resetToLocked('Host password was rejected — please unlock again.');
+                        return;
+                    }
                     showMessages(data.errors || ['Upload failed.'], 'error');
                 } else {
                     showMessages([`"${data.name}" uploaded successfully.`], 'success');
