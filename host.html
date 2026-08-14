@@ -2,13 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Jeopardy Buzzer - Host Controls</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        /* Matches body's background so iOS Safari's safe areas (notch/dynamic island,
+           home indicator) show the theme color instead of white. */
+        html {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
         }
 
         body {
@@ -470,6 +476,58 @@
 			letter-spacing: 0.5px;
 			box-shadow: 0 2px 10px rgba(0,170,255,0.35);
 		}
+
+		.scoring-label {
+			color: #ffd700;
+			font-weight: bold;
+			text-align: center;
+			margin-bottom: 10px;
+		}
+
+		.dd-team-select {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			justify-content: center;
+			margin-bottom: 12px;
+		}
+
+		.dd-team-btn {
+			padding: 10px 18px;
+			border: 3px solid transparent;
+			border-radius: 10px;
+			font-weight: bold;
+			cursor: pointer;
+			color: #222;
+		}
+
+		.dd-team-btn.dd-team-1 { background: #ff6b6b; }
+		.dd-team-btn.dd-team-2 { background: #4ecdc4; }
+		.dd-team-btn.dd-team-3 { background: #ffe66d; }
+		.dd-team-btn.dd-team-4 { background: #a8e6cf; }
+
+		.dd-team-btn.selected {
+			border-color: #ffd700;
+			box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+		}
+
+		.wager-input {
+			display: block;
+			width: 200px;
+			margin: 0 auto 10px auto;
+			padding: 12px;
+			border-radius: 8px;
+			border: none;
+			font-size: 1.1em;
+			text-align: center;
+		}
+
+		.wager-error {
+			color: #ff6666;
+			text-align: center;
+			font-size: 0.9em;
+			margin-bottom: 10px;
+		}
     </style>
 </head>
 <body>
@@ -491,11 +549,29 @@
         <h3>🎯 Current Jeopardy Question</h3>
         <div class="jeopardy-content">
 			<div id="dailyDoubleBadge" class="daily-double-badge" style="display: none;">DAILY DOUBLE</div>
+
+			<div id="dailyDoubleWagerForm" style="display: none;">
+				<div class="scoring-label">Who's answering, and for how much?</div>
+				<div class="dd-team-select" id="ddTeamSelect">
+					<button type="button" class="dd-team-btn dd-team-1" data-team="1">Team 1</button>
+					<button type="button" class="dd-team-btn dd-team-2" data-team="2">Team 2</button>
+					<button type="button" class="dd-team-btn dd-team-3" data-team="3">Team 3</button>
+					<button type="button" class="dd-team-btn dd-team-4" data-team="4">Team 4</button>
+				</div>
+				<input type="number" id="dailyDoubleWagerAmount" class="wager-input" placeholder="Wager amount" min="1">
+				<div id="dailyDoubleWagerError" class="wager-error" style="display: none;"></div>
+				<button type="button" class="control-btn enable" id="submitWagerBtn" onclick="submitDailyDoubleWager()" disabled>Submit Wager</button>
+			</div>
+
             <div class="jeopardy-value" id="jeopardyValue">$0</div>
             <div class="jeopardy-question" id="jeopardyQuestion">No question selected</div>
             <div class="jeopardy-answer" id="jeopardyAnswer" style="display: none;">
                 <strong>Answer:</strong> <span id="jeopardyAnswerText"></span>
             </div>
+			<div class="jeopardy-actions" id="dailyDoubleActions" style="display: none;">
+				<button class="control-btn enable" onclick="markDailyDoubleCorrect()">✅ Correct</button>
+				<button class="control-btn disable" onclick="markDailyDoubleWrong()">❌ Wrong</button>
+			</div>
             <div class="jeopardy-actions">
                 <button class="control-btn secondary" onclick="clearJeopardyDisplay()">Clear Question</button>
             </div>
@@ -988,6 +1064,8 @@
         }
 
         // Jeopardy question display functions
+        let selectedDailyDoubleTeam = null;
+
         function updateJeopardyDisplay(questionData) {
             const displayEl = document.getElementById('jeopardyDisplay');
             const valueEl = document.getElementById('jeopardyValue');
@@ -995,6 +1073,8 @@
             const answerEl = document.getElementById('jeopardyAnswer');
             const answerTextEl = document.getElementById('jeopardyAnswerText');
 			const dailyBadgeEl = document.getElementById('dailyDoubleBadge');
+			const wagerFormEl = document.getElementById('dailyDoubleWagerForm');
+			const ddActionsEl = document.getElementById('dailyDoubleActions');
 
             // Show the display section
             displayEl.style.display = 'block';
@@ -1014,12 +1094,72 @@
 				dailyBadgeEl.style.display = isDaily ? 'inline-block' : 'none';
 			}
 
-            // Show answer immediately
-            answerEl.style.display = 'block';
+			if (isDaily) {
+				// Wager-pending state: a fresh Daily Double always starts here, hiding
+				// the hint/answer/Correct-Wrong controls until a wager is submitted —
+				// driven purely by this event, not by any stale server-side wager state,
+				// since a brand-new question always means any prior wager is irrelevant.
+				resetDailyDoubleWagerForm();
+				wagerFormEl.style.display = 'block';
+				questionEl.style.display = 'none';
+				answerEl.style.display = 'none';
+				ddActionsEl.style.display = 'none';
+			} else {
+				wagerFormEl.style.display = 'none';
+				questionEl.style.display = 'block';
+				answerEl.style.display = 'block';
+				ddActionsEl.style.display = 'none';
+			}
 
             // Store question data for later use
             window.currentJeopardyData = questionData;
         }
+
+		function resetDailyDoubleWagerForm() {
+			selectedDailyDoubleTeam = null;
+			document.querySelectorAll('.dd-team-btn').forEach(btn => btn.classList.remove('selected'));
+			document.getElementById('dailyDoubleWagerAmount').value = '';
+			document.getElementById('dailyDoubleWagerError').style.display = 'none';
+			updateSubmitWagerButtonState();
+		}
+
+		function updateSubmitWagerButtonState() {
+			const amount = parseInt(document.getElementById('dailyDoubleWagerAmount').value, 10);
+			document.getElementById('submitWagerBtn').disabled = !(selectedDailyDoubleTeam && amount > 0);
+		}
+
+		document.querySelectorAll('.dd-team-btn').forEach(btn => {
+			btn.addEventListener('click', () => {
+				selectedDailyDoubleTeam = parseInt(btn.dataset.team, 10);
+				document.querySelectorAll('.dd-team-btn').forEach(b => b.classList.remove('selected'));
+				btn.classList.add('selected');
+				updateSubmitWagerButtonState();
+			});
+		});
+
+		document.getElementById('dailyDoubleWagerAmount').addEventListener('input', updateSubmitWagerButtonState);
+
+		function submitDailyDoubleWager() {
+			const amount = parseInt(document.getElementById('dailyDoubleWagerAmount').value, 10);
+			if (!selectedDailyDoubleTeam || !(amount > 0)) return;
+			if (!window.socket || !window.socket.connected) {
+				console.error('Not connected to server');
+				return;
+			}
+			window.socket.emit('submitDailyDoubleWager', { team: selectedDailyDoubleTeam, amount });
+		}
+
+		function markDailyDoubleCorrect() {
+			if (window.socket && window.socket.connected) {
+				window.socket.emit('markDailyDoubleCorrect');
+			}
+		}
+
+		function markDailyDoubleWrong() {
+			if (window.socket && window.socket.connected) {
+				window.socket.emit('markDailyDoubleWrong');
+			}
+		}
 
         function clearJeopardyDisplay() {
             const displayEl = document.getElementById('jeopardyDisplay');
@@ -1041,9 +1181,14 @@
             newQuestion();
         }
 
-        // Listen for scoring events
+        // Listen for scoring events. Guarded so repeated 'socketConnected' firings
+        // (e.g. reconnecting after a dropped WiFi connection mid-party) don't stack up
+        // duplicate listeners and fire notifications multiple times per real event.
+        let scoringListenersRegistered = false;
         window.addEventListener('socketConnected', () => {
-            if (window.socket) {
+            if (window.socket && !scoringListenersRegistered) {
+                scoringListenersRegistered = true;
+
                 window.socket.on('buzzMarkedCorrect', (data) => {
                     console.log('Buzz marked correct:', data);
                     showScoringNotification(data.playerName, data.team, data.pointsAdded, true);
@@ -1060,6 +1205,35 @@
                     console.log('Buzz dismissed:', data);
                     showDismissNotification(data.playerName, data.team);
                     updateGameState(); // Refresh display
+                });
+
+                window.socket.on('dailyDoubleWagerSubmitted', (data) => {
+                    console.log('Daily Double wager submitted:', data);
+                    const wagerFormEl = document.getElementById('dailyDoubleWagerForm');
+                    const ddActionsEl = document.getElementById('dailyDoubleActions');
+                    const questionEl = document.getElementById('jeopardyQuestion');
+                    const answerEl = document.getElementById('jeopardyAnswer');
+                    if (wagerFormEl) wagerFormEl.style.display = 'none';
+                    if (questionEl) questionEl.style.display = 'block';
+                    if (answerEl) answerEl.style.display = 'block';
+                    if (ddActionsEl) ddActionsEl.style.display = 'flex';
+                });
+
+                window.socket.on('dailyDoubleResolved', (data) => {
+                    console.log('Daily Double resolved:', data);
+                    const ddActionsEl = document.getElementById('dailyDoubleActions');
+                    if (ddActionsEl) ddActionsEl.style.display = 'none';
+                    showScoringNotification('Daily Double', data.team, data.amount, data.correct);
+                    updateGameState(); // Refresh display
+                });
+
+                window.socket.on('dailyDoubleWagerError', (message) => {
+                    console.warn('Daily Double wager error:', message);
+                    const errorEl = document.getElementById('dailyDoubleWagerError');
+                    if (errorEl) {
+                        errorEl.textContent = message;
+                        errorEl.style.display = 'block';
+                    }
                 });
             }
         });

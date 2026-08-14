@@ -57,6 +57,7 @@ let gameState = {
     buzzingEnabled: false,
     currentQuestion: null,
     currentQuestionValue: 0, // Current question point value
+    currentDailyDoubleWager: null, // {team, amount} once submitted for the current Daily Double, cleared on resolution or new question
     activeGameId: null, // id of the uploaded game currently loaded on the board (routes/games.js)
     activeGameContentVersion: 0, // bumped whenever a question in the active game is edited, so jeopardy.html knows to reload even when activeGameId itself hasn't changed
     teamScores: {
@@ -505,6 +506,75 @@ io.on('connection', (socket) => {
         console.log(`Buzz dismissed: ${playerName} (Team ${team}) - no score change`);
     });
 
+    // Daily Double: no buzz-in happens (the picking team already has control), so
+    // scoring can't reuse the buzz-based markBuzzCorrect/markBuzzWrong flow above —
+    // there's no buzz object to attach a winner to. Instead the host submits a
+    // {team, amount} wager up front, then resolves it for 100% gain/loss of that
+    // wager (not the board's fixed value, which doesn't apply to a Daily Double).
+    socket.on('submitDailyDoubleWager', (data) => {
+        const team = parseInt(data && data.team, 10);
+        const amount = parseInt(data && data.amount, 10);
+
+        if (!(team >= 1 && team <= 4) || !(Number.isInteger(amount) && amount > 0)) {
+            socket.emit('dailyDoubleWagerError', 'Please select a team and enter a wager amount greater than $0.');
+            return;
+        }
+
+        gameState.currentDailyDoubleWager = { team, amount };
+        gameState.lastUpdate = Date.now();
+
+        broadcastGameState();
+        io.emit('dailyDoubleWagerSubmitted', { team, amount });
+
+        console.log(`Daily Double wager submitted: Team ${team}, $${amount}`);
+    });
+
+    socket.on('markDailyDoubleCorrect', () => {
+        const wager = gameState.currentDailyDoubleWager;
+        if (!wager) return;
+
+        if (gameState.teamScores[wager.team] !== undefined) {
+            gameState.teamScores[wager.team] += wager.amount;
+        }
+
+        gameState.hostControls.buzzEnabled = false;
+        gameState.currentDailyDoubleWager = null;
+        gameState.lastUpdate = Date.now();
+
+        broadcastGameState();
+        io.emit('dailyDoubleResolved', {
+            team: wager.team,
+            amount: wager.amount,
+            correct: true,
+            newTeamScore: gameState.teamScores[wager.team]
+        });
+
+        console.log(`Daily Double correct: Team ${wager.team} +$${wager.amount}. New score: ${gameState.teamScores[wager.team]}`);
+    });
+
+    socket.on('markDailyDoubleWrong', () => {
+        const wager = gameState.currentDailyDoubleWager;
+        if (!wager) return;
+
+        if (gameState.teamScores[wager.team] !== undefined) {
+            gameState.teamScores[wager.team] -= wager.amount;
+        }
+
+        gameState.hostControls.buzzEnabled = false;
+        gameState.currentDailyDoubleWager = null;
+        gameState.lastUpdate = Date.now();
+
+        broadcastGameState();
+        io.emit('dailyDoubleResolved', {
+            team: wager.team,
+            amount: wager.amount,
+            correct: false,
+            newTeamScore: gameState.teamScores[wager.team]
+        });
+
+        console.log(`Daily Double wrong: Team ${wager.team} -$${wager.amount}. New score: ${gameState.teamScores[wager.team]}`);
+    });
+
     socket.on('resetTeamScores', () => {
         // Reset all team scores to 0
         gameState.teamScores = {
@@ -555,6 +625,7 @@ io.on('connection', (socket) => {
         gameState.hostControls.buzzEnabled = false;
         gameState.currentQuestion = null;
         gameState.buzzes = [];
+        gameState.currentDailyDoubleWager = null;
         gameState.lastUpdate = Date.now();
         
         broadcastGameState();
@@ -574,6 +645,7 @@ io.on('connection', (socket) => {
             buzzingEnabled: false,
             currentQuestion: null,
             currentQuestionValue: 0,
+            currentDailyDoubleWager: null,
             teamScores: {
                 1: 0,
                 2: 0,
@@ -598,8 +670,10 @@ io.on('connection', (socket) => {
     socket.on('jeopardyQuestion', (questionData) => {
         console.log(`Jeopardy question displayed: $${questionData.value}`);
         
-        // Store current question value for scoring
+        // Store current question value for scoring. A fresh question — Daily Double or
+        // not — always invalidates any prior wager.
         gameState.currentQuestionValue = questionData.value || 0;
+        gameState.currentDailyDoubleWager = null;
         gameState.lastUpdate = Date.now();
         
         // Broadcast to all connected clients (especially host)

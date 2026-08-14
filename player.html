@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Jeopardy Buzzer - Player</title>
     <style>
         /* Theme System - CSS Custom Properties */
@@ -215,6 +215,15 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        /* Matches body's background so iOS Safari's safe areas (notch/dynamic island,
+           home indicator) show the theme color instead of white — requires
+           viewport-fit=cover on the meta viewport tag to take effect. The theme class
+           is applied to <html> as well as <body> (see applyThemeForPlayer) so this
+           tracks whichever theme is active, not just the default. */
+        html {
+            background: var(--bg-primary);
         }
 
         body {
@@ -625,17 +634,16 @@
 
         // Apply theme based on player name
         function applyThemeForPlayer(playerName) {
-            // Remove any existing theme classes
+            // Applied to <html> as well as <body> so the safe-area background (see the
+            // `html` rule above) tracks whichever theme is active, not just the default.
+            document.documentElement.classList.remove('theme-blue', 'theme-dark', 'theme-green', 'theme-purple');
             document.body.classList.remove('theme-blue', 'theme-dark', 'theme-green', 'theme-purple');
-            
+
             // Check if player name contains "dan" anywhere (case insensitive)
             const name = playerName.toLowerCase().trim();
-            if (name.includes('dan')) {
-                document.body.classList.add('theme-purple');
-            } else {
-                // Default to blue theme for other players
-                document.body.classList.add('theme-blue');
-            }
+            const theme = name.includes('dan') ? 'theme-purple' : 'theme-blue';
+            document.documentElement.classList.add(theme);
+            document.body.classList.add(theme);
         }
 
         // Update game state and UI

@@ -3,8 +3,15 @@
 
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Jeopardy Game</title>
     <style>
+        /* Matches body's background so iOS Safari's safe areas (notch/dynamic island,
+           home indicator) show the theme color instead of white. */
+        html {
+            background: #061e44;
+        }
+
         body {
             font-family: Arial, sans-serif;
             background: #061e44;
@@ -881,16 +888,23 @@
             }
         }
 
+        // Transition from the "DAILY DOUBLE" placeholder to showing the hint. Shared by
+        // the local click handler below and the remote dailyDoubleWagerSubmitted event
+        // (so the board auto-advances the instant the host submits a wager, without
+        // needing a click on the board itself).
+        function revealDailyDoubleHint() {
+            showingDoubleJeopardy = false;
+            modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + renderHintContent(currentContent.hint, currentContent.imageUrl);
+        }
+
         modalContent.onclick = (e) => {
             // Don't close if clicking the X button
             if (e.target.classList.contains('modal-close')) {
                 return;
             }
-            
+
             if (showingDoubleJeopardy) {
-                // Transition from "DOUBLE JEOPARDY" to showing the hint
-                showingDoubleJeopardy = false;
-                modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + renderHintContent(currentContent.hint, currentContent.imageUrl);
+                revealDailyDoubleHint();
             } else if (!showingAnswer) {
                 modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
                 showingAnswer = true;
@@ -1390,7 +1404,30 @@
                     console.log('Buzz marked wrong:', data);
                     // Scores will be updated via gameStateUpdate
                 });
-                
+
+                // Host submitted the wager for the Daily Double currently on screen —
+                // advance the board from the "DAILY DOUBLE" placeholder to the hint,
+                // without waiting for a click on the board itself. No-op if the board
+                // isn't actually sitting on that placeholder (e.g. already clicked
+                // through manually, or the event arrived out of order).
+                jeopardySocket.on('dailyDoubleWagerSubmitted', function(data) {
+                    console.log('Daily Double wager submitted:', data);
+                    if (showingDoubleJeopardy) {
+                        revealDailyDoubleHint();
+                    }
+                });
+
+                // Mirrors the buzzMarkedCorrect behavior above: auto-reveal the answer
+                // once the host resolves the Daily Double, rather than requiring a click.
+                jeopardySocket.on('dailyDoubleResolved', function(data) {
+                    console.log('Daily Double resolved:', data);
+                    var modal = document.getElementById('modal');
+                    if (modal && modal.style.display === 'flex' && !showingAnswer && currentContent) {
+                        modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
+                        showingAnswer = true;
+                    }
+                });
+
                 jeopardySocket.on('teamScoresReset', function() {
                     console.log('Team scores reset by server');
                     // Reset local scores

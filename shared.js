@@ -21,7 +21,12 @@ function initializeSocket() {
 
     // Connect to server
     socket = io();
-    
+    // `socket` above is module-scoped to this <script> (a `let`, not `var`, so it never
+    // became a `window` property on its own) — some pages reach for `window.socket`
+    // directly for one-off emits/listeners beyond the wrapper functions below, so it's
+    // exposed explicitly here.
+    window.socket = socket;
+
     // Connection events
     socket.on('connect', () => {
         console.log('Connected to server:', socket.id);

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Jeopardy Buzzer - Upload Game</title>
     <style>
         :root {
@@ -44,6 +44,12 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+        }
+
+        /* Matches body's background so iOS Safari's safe areas (notch/dynamic island,
+           home indicator) show the theme color instead of white. */
+        html {
+            background: var(--bg-primary);
         }
 
         body {
