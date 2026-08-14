@@ -253,14 +253,13 @@
 
         .game-row {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             padding: 12px 15px;
             background: var(--bg-tertiary);
             border-radius: 10px;
             border: 2px solid transparent;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
         }
 
         .game-row.active {
@@ -271,15 +270,30 @@
         .game-info {
             display: flex;
             flex-direction: column;
+            flex: 1 1 auto;
+            min-width: 0; /* lets the flex item shrink below its text's natural width, so the name/date can ellipsis instead of pushing the action buttons off-row */
         }
 
         .game-name {
             font-weight: bold;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .game-meta {
             font-size: 0.8em;
             color: var(--text-muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .game-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
         }
 
         .activate-btn {
@@ -288,6 +302,7 @@
             background: var(--btn-secondary-bg);
             color: var(--btn-secondary-text);
             border: 2px solid var(--btn-secondary-border);
+            white-space: nowrap;
         }
 
         .delete-btn {
@@ -296,6 +311,7 @@
             background: rgba(255, 107, 107, 0.15);
             color: var(--error-text);
             border: 2px solid var(--error-text);
+            white-space: nowrap;
         }
 
         .active-badge {
@@ -303,6 +319,37 @@
             font-size: 0.85em;
             font-weight: bold;
             color: #ffd700;
+            white-space: nowrap;
+        }
+
+        /* Below this width, three labeled buttons plus a name/date column no longer
+           fit on one line — drop each action button's text label and keep just its
+           icon, and tighten spacing, so the row still fits in a single line instead
+           of wrapping into a jumble. */
+        @media (max-width: 480px) {
+            .game-row {
+                gap: 6px;
+                padding: 10px 12px;
+            }
+
+            .game-meta {
+                font-size: 0.75em;
+            }
+
+            .game-actions {
+                gap: 4px;
+            }
+
+            .activate-btn,
+            .delete-btn,
+            .active-badge {
+                padding: 8px 10px;
+                font-size: 0.85em;
+            }
+
+            .btn-label {
+                display: none;
+            }
         }
 
         .empty-state {
@@ -346,56 +393,58 @@
             </div>
         </div>
 
-        <div class="panel">
-            <h2>Create a New Game</h2>
+        <div id="hostToolsSection" style="display: none;">
+            <div class="panel">
+                <h2>Create a New Game</h2>
 
-            <label for="gameName">Game Name</label>
-            <input type="text" id="gameName" placeholder="e.g. Sarah's Birthday Jeopardy">
+                <label for="gameName">Game Name</label>
+                <input type="text" id="gameName" placeholder="e.g. Sarah's Birthday Jeopardy">
 
-            <div class="tabs">
-                <button class="tab-btn active" type="button" data-tab="csv">Upload CSV</button>
-                <button class="tab-btn" type="button" data-tab="blank">Create From Scratch</button>
+                <div class="tabs">
+                    <button class="tab-btn active" type="button" data-tab="csv">Upload CSV</button>
+                    <button class="tab-btn" type="button" data-tab="blank">Create From Scratch</button>
+                </div>
+
+                <div class="tab-panel active" id="tabCsv">
+                    <form id="uploadForm">
+                        <label for="csvFile">CSV File</label>
+                        <input type="file" id="csvFile" accept=".csv" required>
+                        <div class="help-text">
+                            New to this? <a href="game-template.csv" download>⬇️ Download a blank CSV template</a> to fill in.<br>
+                            Columns: <code>Name, Difficulty, Question, Answer, Round, isDoubleJeopardy</code>
+                            (optional <code>Image URL</code> column, if you already have an image hosted somewhere — otherwise
+                            leave it blank and attach photos afterward from the saved-games list below).
+                            <code>Round</code> is just <code>1</code>, <code>2</code>, or <code>3</code> — a category's
+                            left-to-right position on the board is simply the order its rows first appear in the file, so keep
+                            all 5 rows of a category together. For Final Jeopardy, put the literal text
+                            <code>Final Jeopardy</code> in the <code>Round</code> column instead, with the category in
+                            <code>Name</code>, the clue in <code>Question</code>, and the response in <code>Answer</code>.
+                            Each round needs exactly 5 categories with 5 questions (difficulty 1-5) apiece; rounds 1-3 are all
+                            optional but whichever are present must be complete.
+                        </div>
+
+                        <button type="submit" id="uploadBtn" disabled>Upload Game</button>
+                    </form>
+                    <div class="messages" id="uploadMessages"></div>
+                </div>
+
+                <div class="tab-panel" id="tabBlank">
+                    <form id="blankForm">
+                        <div class="help-text">
+                            Starts with the same 3-round, 5-category, 5-question layout as an uploaded game, filled with
+                            placeholder text — you'll rename categories and fill in each question in the editor that opens next.
+                        </div>
+                        <button type="submit" id="blankBtn" disabled>Create Game</button>
+                    </form>
+                    <div class="messages" id="blankMessages"></div>
+                </div>
             </div>
 
-            <div class="tab-panel active" id="tabCsv">
-                <form id="uploadForm">
-                    <label for="csvFile">CSV File</label>
-                    <input type="file" id="csvFile" accept=".csv" required>
-                    <div class="help-text">
-                        New to this? <a href="game-template.csv" download>⬇️ Download a blank CSV template</a> to fill in.<br>
-                        Columns: <code>Name, Difficulty, Question, Answer, Round, isDoubleJeopardy</code>
-                        (optional <code>Image URL</code> column, if you already have an image hosted somewhere — otherwise
-                        leave it blank and attach photos afterward from the saved-games list below).
-                        <code>Round</code> is just <code>1</code>, <code>2</code>, or <code>3</code> — a category's
-                        left-to-right position on the board is simply the order its rows first appear in the file, so keep
-                        all 5 rows of a category together. For Final Jeopardy, put the literal text
-                        <code>Final Jeopardy</code> in the <code>Round</code> column instead, with the category in
-                        <code>Name</code>, the clue in <code>Question</code>, and the response in <code>Answer</code>.
-                        Each round needs exactly 5 categories with 5 questions (difficulty 1-5) apiece; rounds 1-3 are all
-                        optional but whichever are present must be complete.
-                    </div>
-
-                    <button type="submit" id="uploadBtn" disabled>Upload Game</button>
-                </form>
-                <div class="messages" id="uploadMessages"></div>
-            </div>
-
-            <div class="tab-panel" id="tabBlank">
-                <form id="blankForm">
-                    <div class="help-text">
-                        Starts with the same 3-round, 5-category, 5-question layout as an uploaded game, filled with
-                        placeholder text — you'll rename categories and fill in each question in the editor that opens next.
-                    </div>
-                    <button type="submit" id="blankBtn" disabled>Create Game</button>
-                </form>
-                <div class="messages" id="blankMessages"></div>
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>Saved Games</h2>
-            <div class="game-list" id="gameList">
-                <div class="empty-state">Loading…</div>
+            <div class="panel">
+                <h2>Saved Games</h2>
+                <div class="game-list" id="gameList">
+                    <div class="empty-state">Loading…</div>
+                </div>
             </div>
         </div>
 
@@ -421,19 +470,33 @@
 
         const auth = initHostAuth({ onChange: updateLockUI });
 
+        let gamesLoadedOnce = false;
+
         function updateLockUI() {
             const indicator = document.getElementById('lockIndicator');
             const uploadBtn = document.getElementById('uploadBtn');
             const blankBtn = document.getElementById('blankBtn');
-            if (auth.isUnlocked()) {
+            const hostToolsSection = document.getElementById('hostToolsSection');
+            const unlocked = auth.isUnlocked();
+
+            if (unlocked) {
                 indicator.textContent = '🔓 Unlocked';
                 indicator.classList.add('unlocked');
             } else {
                 indicator.textContent = '🔒 Locked';
                 indicator.classList.remove('unlocked');
             }
-            uploadBtn.disabled = !auth.isUnlocked();
-            blankBtn.disabled = !auth.isUnlocked();
+            uploadBtn.disabled = !unlocked;
+            blankBtn.disabled = !unlocked;
+
+            // Create/Load Game are host-only tools, not something a guest needs to see
+            // just to join — keep them hidden entirely until the password is entered,
+            // rather than merely disabling their buttons.
+            hostToolsSection.style.display = unlocked ? 'block' : 'none';
+            if (unlocked && !gamesLoadedOnce) {
+                gamesLoadedOnce = true;
+                loadGames();
+            }
             renderGames(lastGames);
         }
 
@@ -504,8 +567,8 @@
                 const isActive = game.id === activeGameId;
                 const uploadedDate = new Date(game.uploadedAt).toLocaleString();
                 const actionHtml = isActive
-                    ? '<span class="active-badge">✅ Active</span>'
-                    : `<button class="activate-btn" data-game-id="${game.id}" ${auth.isUnlocked() ? '' : 'disabled title="Unlock with the host password to activate"'}>Activate</button>`;
+                    ? '<span class="active-badge">✅<span class="btn-label"> Active</span></span>'
+                    : `<button class="activate-btn" data-game-id="${game.id}" ${auth.isUnlocked() ? '' : 'disabled title="Unlock with the host password to activate"'}>🎯<span class="btn-label"> Activate</span></button>`;
 
                 return `
                     <div class="game-row ${isActive ? 'active' : ''}">
@@ -513,9 +576,11 @@
                             <div class="game-name">${game.name}</div>
                             <div class="game-meta">Uploaded ${uploadedDate}</div>
                         </div>
-                        <a class="activate-btn" style="text-decoration:none; display:inline-block;" href="edit-photos.html?id=${encodeURIComponent(game.id)}">✏️ Edit</a>
-                        ${actionHtml}
-                        <button class="delete-btn" data-game-id="${game.id}" data-game-name="${game.name.replace(/"/g, '&quot;')}" ${auth.isUnlocked() ? '' : 'disabled title="Unlock with the host password to delete"'}>🗑️ Delete</button>
+                        <div class="game-actions">
+                            <a class="activate-btn" style="text-decoration:none; display:inline-block;" href="edit-photos.html?id=${encodeURIComponent(game.id)}">✏️<span class="btn-label"> Edit</span></a>
+                            ${actionHtml}
+                            <button class="delete-btn" data-game-id="${game.id}" data-game-name="${game.name.replace(/"/g, '&quot;')}" ${auth.isUnlocked() ? '' : 'disabled title="Unlock with the host password to delete"'}>🗑️<span class="btn-label"> Delete</span></button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -679,7 +744,6 @@
         });
 
         updateLockUI();
-        loadGames();
     </script>
 </body>
 </html>
