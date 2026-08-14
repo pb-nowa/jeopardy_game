@@ -64,7 +64,9 @@ let gameState = {
         answers: { 1: null, 2: null, 3: null, 4: null },
         resolved: { 1: false, 2: false, 3: false, 4: false },
         revealed: { 1: false, 2: false, 3: false, 4: false }, // host has shown this team's answer on the board at least once
-        revealedTeam: null // which team's answer the board is currently displaying, for reconnect resync
+        revealedTeam: null, // which team's answer the board is currently displaying, for reconnect resync
+        wagerRevealed: { 1: false, 2: false, 3: false, 4: false }, // host has shown this team's wager on the board at least once (only after its answer is revealed)
+        revealedWagerTeam: null // which team's wager the board is currently displaying, for reconnect resync
     },
     activeGameId: null, // id of the uploaded game currently loaded on the board (routes/games.js)
     activeGameContentVersion: 0, // bumped whenever a question in the active game is edited, so jeopardy.html knows to reload even when activeGameId itself hasn't changed
@@ -734,9 +736,30 @@ io.on('connection', (socket) => {
         console.log(`Final Jeopardy: revealed Team ${team}'s answer`);
     });
 
+    // Second reveal step — only after the team's answer is already shown, mirroring
+    // the real show's beat of seeing the response before the amount riding on it.
+    socket.on('revealFinalJeopardyTeamWager', (data) => {
+        if (gameState.finalJeopardy.phase !== 'resolving') return;
+        const team = parseInt(data && data.team, 10);
+        if (!(team >= 1 && team <= 4)) return;
+        if (!gameState.finalJeopardy.revealed[team]) return;
+
+        gameState.finalJeopardy.wagerRevealed[team] = true;
+        gameState.finalJeopardy.revealedWagerTeam = team;
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+        io.emit('finalJeopardyTeamWagerRevealed', {
+            team,
+            wager: gameState.finalJeopardy.wagers[team]
+        });
+
+        console.log(`Final Jeopardy: revealed Team ${team}'s wager`);
+    });
+
     function resolveFinalJeopardyTeam(team, correct) {
         if (gameState.finalJeopardy.phase !== 'resolving') return;
         if (gameState.finalJeopardy.resolved[team]) return;
+        if (!gameState.finalJeopardy.wagerRevealed[team]) return;
 
         const wager = gameState.finalJeopardy.wagers[team] || 0;
         if (gameState.teamScores[team] !== undefined) {
@@ -792,7 +815,9 @@ io.on('connection', (socket) => {
             answers: { 1: null, 2: null, 3: null, 4: null },
             resolved: { 1: false, 2: false, 3: false, 4: false },
             revealed: { 1: false, 2: false, 3: false, 4: false },
-            revealedTeam: null
+            revealedTeam: null,
+            wagerRevealed: { 1: false, 2: false, 3: false, 4: false },
+            revealedWagerTeam: null
         };
         gameState.lastUpdate = Date.now();
         broadcastGameState();
@@ -878,7 +903,9 @@ io.on('connection', (socket) => {
                 answers: { 1: null, 2: null, 3: null, 4: null },
                 resolved: { 1: false, 2: false, 3: false, 4: false },
                 revealed: { 1: false, 2: false, 3: false, 4: false },
-                revealedTeam: null
+                revealedTeam: null,
+                wagerRevealed: { 1: false, 2: false, 3: false, 4: false },
+                revealedWagerTeam: null
             },
             teamScores: {
                 1: 0,

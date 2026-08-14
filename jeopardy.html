@@ -993,6 +993,18 @@
             finalJeopardyState = "team-answer";
         }
 
+        // Second reveal step — appends the wager below the answer already on screen
+        // (rather than replacing it), since both stay visible together while the
+        // host judges. Triggered by finalJeopardyTeamWagerRevealed, always after
+        // showFinalTeamAnswer for the same team.
+        function showFinalTeamWager(team, wager) {
+            const finalText = document.getElementById("finalText");
+            const teamColor = getTeamColor(team);
+            const teamName = getTeamName(team);
+            finalText.innerHTML += `<br><br><span style="color:${teamColor};">${teamName}'s Wager:</span><br>$${(wager || 0).toLocaleString()}`;
+            finalJeopardyState = "team-wager";
+        }
+
         // Transition to the Final Jeopardy answer view — the real correct answer.
         // Shared by toggleFinal()'s manual cycle and the remote finalJeopardyComplete
         // event (auto-fires once every team has been scored).
@@ -1491,14 +1503,19 @@
                                 }
                             } else if (fjPhase === 'resolving') {
                                 // The correct answer stays hidden here — only the neutral
-                                // placeholder, or the last team the host revealed, both of
-                                // which the board (unlike players) legitimately already has
-                                // in its own gameState.
-                                if (finalJeopardyState !== 'locked' && finalJeopardyState !== 'team-answer') {
+                                // placeholder, or the last team the host revealed (answer,
+                                // then optionally its wager too), both of which the board
+                                // (unlike players) legitimately already has in its own
+                                // gameState.
+                                if (finalJeopardyState !== 'locked' && finalJeopardyState !== 'team-answer' &&
+                                    finalJeopardyState !== 'team-wager') {
                                     showFinalAnswersLockedPlaceholder();
                                 }
                                 if (fj.revealedTeam) {
                                     showFinalTeamAnswer(fj.revealedTeam, fj.answers[fj.revealedTeam]);
+                                    if (fj.wagerRevealed[fj.revealedTeam]) {
+                                        showFinalTeamWager(fj.revealedTeam, fj.wagers[fj.revealedTeam]);
+                                    }
                                 }
                             } else if (fjPhase === 'complete') {
                                 if (finalJeopardyState !== 'answer') {
@@ -1580,6 +1597,14 @@
                     console.log('Final Jeopardy team answer revealed:', data);
                     showRound(4);
                     showFinalTeamAnswer(data.team, data.answer);
+                });
+
+                // Host clicked through to the second reveal step — show that team's
+                // wager alongside the answer already on screen.
+                jeopardySocket.on('finalJeopardyTeamWagerRevealed', function(data) {
+                    console.log('Final Jeopardy team wager revealed:', data);
+                    showRound(4);
+                    showFinalTeamWager(data.team, data.wager);
                 });
 
                 // Every team has been scored — safe to reveal the real correct answer.

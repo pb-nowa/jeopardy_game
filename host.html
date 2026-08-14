@@ -1284,7 +1284,8 @@
             if (fj.phase === 'wagering') {
                 rowsHtml += teams.map(team => {
                     const wager = fj.wagers[team];
-                    const cap = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
+                    const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
+                    const cap = Math.max(0, score);
                     const wagerText = wager === null || wager === undefined
                         ? '<span class="fj-pending">no wager yet</span>'
                         : `Wager: $${wager.toLocaleString()}`;
@@ -1293,7 +1294,7 @@
                             <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
                             <div class="fj-team-info">
                                 <div>${wagerText}</div>
-                                <div class="fj-cap">Can wager up to $${cap.toLocaleString()}</div>
+                                <div class="fj-cap">Current score: $${score.toLocaleString()} — can wager up to $${cap.toLocaleString()}</div>
                             </div>
                         </div>
                     `;
@@ -1306,6 +1307,7 @@
             } else if (fj.phase === 'answering') {
                 rowsHtml += teams.map(team => {
                     const wager = fj.wagers[team] || 0;
+                    const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
                     const answer = fj.answers[team];
                     const answerText = answer
                         ? `<span class="fj-team-answer">Answer: ${escapeHtmlText(answer)}</span>`
@@ -1314,7 +1316,7 @@
                         <div class="fj-team-row">
                             <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
                             <div class="fj-team-info">
-                                <div>Wager: $${wager.toLocaleString()}</div>
+                                <div>Wager: $${wager.toLocaleString()} <span class="fj-cap">(current score: $${score.toLocaleString()})</span></div>
                                 <div>${answerText}</div>
                             </div>
                         </div>
@@ -1327,29 +1329,39 @@
                 `;
             } else {
                 // 'resolving' or 'complete'. The host always sees each team's real
-                // answer here (they need to read it to judge it) — what's gated on
-                // fj.revealed[team] is only whether it's been shown on the shared
-                // board yet, which is what unlocks scoring for that team.
+                // answer and wager here (they need to read them to judge) — what's
+                // gated on fj.revealed[team]/fj.wagerRevealed[team] is only whether
+                // each has been shown on the shared board yet. Scoring only unlocks
+                // once both reveal steps are done, mirroring the real show's beat of
+                // seeing the response before the amount riding on it.
                 rowsHtml += teams.map(team => {
                     const wager = fj.wagers[team] || 0;
+                    const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
                     const answer = fj.answers[team];
                     const answerText = answer ? escapeHtmlText(answer) : '<span class="fj-pending">no answer</span>';
                     const resolved = fj.resolved[team];
                     const revealed = fj.revealed[team];
+                    const wagerRevealed = fj.wagerRevealed[team];
                     let actionHtml;
                     if (resolved) {
                         actionHtml = `<span class="fj-result">✅ Scored</span>`;
-                    } else if (revealed) {
+                    } else if (wagerRevealed) {
                         actionHtml = `
                             <div class="fj-actions">
                                 <button class="control-btn enable" onclick="markFinalJeopardyCorrect(${team})">✅ Correct</button>
                                 <button class="control-btn disable" onclick="markFinalJeopardyWrong(${team})">❌ Wrong</button>
                             </div>
                         `;
+                    } else if (revealed) {
+                        actionHtml = `
+                            <div class="fj-actions">
+                                <button class="control-btn secondary" onclick="revealFinalJeopardyTeamWager(${team})">💰 Reveal Wager</button>
+                            </div>
+                        `;
                     } else {
                         actionHtml = `
                             <div class="fj-actions">
-                                <button class="control-btn secondary" onclick="revealFinalJeopardyTeamAnswer(${team})">👁 Reveal on Board</button>
+                                <button class="control-btn secondary" onclick="revealFinalJeopardyTeamAnswer(${team})">👁 Reveal Answer</button>
                             </div>
                         `;
                     }
@@ -1357,7 +1369,7 @@
                         <div class="fj-team-row">
                             <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
                             <div class="fj-team-info">
-                                <div>Wager: $${wager.toLocaleString()}</div>
+                                <div>Wager: $${wager.toLocaleString()} <span class="fj-cap">(current score: $${score.toLocaleString()})</span></div>
                                 <div class="fj-team-answer">${answerText}</div>
                             </div>
                             ${actionHtml}
@@ -1396,6 +1408,12 @@
         function revealFinalJeopardyTeamAnswer(team) {
             if (window.socket && window.socket.connected) {
                 window.socket.emit('revealFinalJeopardyTeamAnswer', { team });
+            }
+        }
+
+        function revealFinalJeopardyTeamWager(team) {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('revealFinalJeopardyTeamWager', { team });
             }
         }
 

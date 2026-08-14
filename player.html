@@ -812,7 +812,7 @@
                     const maxWager = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
                     bodyEl.innerHTML = `
                         <div class="fj-current">
-                            <div class="fj-current-label">Current Wager</div>
+                            <div class="fj-current-label">Your Team's Current Wager</div>
                             <div class="fj-current-value" id="fjCurrentWager"></div>
                         </div>
                         <div class="fj-cap" id="fjWagerCap"></div>
@@ -867,7 +867,7 @@
                 const input = document.getElementById('fjWagerInput');
                 if (input) input.max = maxWager;
                 const capEl = document.getElementById('fjWagerCap');
-                if (capEl) capEl.textContent = `You can wager up to $${maxWager.toLocaleString()}`;
+                if (capEl) capEl.textContent = `Your team can wager up to $${maxWager.toLocaleString()}`;
             } else if (fj.phase === 'answering') {
                 statusEl.textContent = 'Final Jeopardy: submit your answer!';
                 statusEl.className = 'status enabled';
