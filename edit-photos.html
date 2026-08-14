@@ -250,6 +250,22 @@
             font-style: italic;
         }
 
+        .dd-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .dd-checkbox-label input {
+            width: auto;
+            margin: 0;
+            cursor: pointer;
+        }
+
         input[type="file"] {
             font-size: 12px;
             color: var(--text-muted);
@@ -433,6 +449,19 @@
             answerArea.placeholder = 'Answer (e.g. What is...?)';
             cell.appendChild(answerArea);
 
+            // Final Jeopardy has no Daily Double concept — only regular round questions do.
+            let ddCheckbox = null;
+            if (roundValue !== 'final') {
+                const ddLabel = document.createElement('label');
+                ddLabel.className = 'dd-checkbox-label';
+                ddCheckbox = document.createElement('input');
+                ddCheckbox.type = 'checkbox';
+                ddCheckbox.checked = !!question.doubleJeopardy;
+                ddLabel.appendChild(ddCheckbox);
+                ddLabel.appendChild(document.createTextNode(' Daily Double'));
+                cell.appendChild(ddLabel);
+            }
+
             const imgWrap = document.createElement('div');
             imgWrap.className = 'image-preview-wrap';
             cell.appendChild(imgWrap);
@@ -479,6 +508,7 @@
                 fileInput.disabled = busy;
                 hintArea.disabled = busy;
                 answerArea.disabled = busy;
+                if (ddCheckbox) ddCheckbox.disabled = busy;
             }
 
             async function submitUpdate({ file, removeImage }) {
@@ -500,6 +530,7 @@
                 }
                 formData.append('hint', hintArea.value);
                 formData.append('answer', answerArea.value);
+                if (ddCheckbox) formData.append('doubleJeopardy', ddCheckbox.checked ? 'true' : 'false');
                 if (file) formData.append('image', file);
                 if (removeImage) formData.append('removeImage', 'true');
 
@@ -524,6 +555,7 @@
 
                     question.hint = data.hint;
                     question.answer = data.answer;
+                    if (roundValue !== 'final') question.doubleJeopardy = data.doubleJeopardy;
                     question.imageUrl = data.imageUrl;
                     question.imagePublicId = data.imagePublicId;
                     renderPreview();

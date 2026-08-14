@@ -249,6 +249,10 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
             const answer = answerProvided ? String(body.answer) : undefined;
             const fjCategoryProvided = isFinal && Object.prototype.hasOwnProperty.call(body, 'category');
             const fjCategory = fjCategoryProvided ? String(body.category).trim() : undefined;
+            // Final Jeopardy has no Daily Double concept in the schema — only regular
+            // round questions carry a doubleJeopardy flag.
+            const doubleJeopardyProvided = !isFinal && Object.prototype.hasOwnProperty.call(body, 'doubleJeopardy');
+            const doubleJeopardy = doubleJeopardyProvided ? body.doubleJeopardy === 'true' : undefined;
 
             if (!isFinal && !['1', '2', '3'].includes(round)) {
                 return res.status(400).json({ errors: ['round must be "1", "2", "3", or "final".'] });
@@ -296,6 +300,9 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
                     }
                     if (fjCategoryProvided) {
                         target.category = escapeHtml(fjCategory);
+                    }
+                    if (doubleJeopardyProvided) {
+                        target.doubleJeopardy = doubleJeopardy;
                     }
 
                     if (req.file) {
