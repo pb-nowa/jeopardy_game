@@ -160,6 +160,43 @@ module.exports = function createGamesRouter({ gameState, broadcastGameState, hos
         }
     });
 
+    // Deletes a saved game (registry entry + blob). Attached photos are left as
+    // orphaned files/Cloudinary assets — not cleaned up. If the deleted game was the
+    // currently active one, clears activeGameId so jeopardy.html falls back to the
+    // bundled hints.json (reuses its existing fallback path, no special-casing needed).
+    router.delete('/:id', requireHostPassword, async (req, res) => {
+        const { id } = req.params;
+        if (!UUID_RE.test(id)) {
+            return res.status(404).json({ errors: ['Game not found.'] });
+        }
+
+        try {
+            // Routed through the same per-game mutex as question/category edits so a
+            // delete can't race with an in-flight edit resurrecting the game via
+            // updateGame() after deleteGame() already removed it.
+            await withGameLock(id, async () => {
+                if (!(await store.gameExists(id))) {
+                    throw Object.assign(new Error('Game not found.'), { status: 404 });
+                }
+                await store.deleteGame(id);
+            });
+
+            if (gameState.activeGameId === id) {
+                gameState.activeGameId = null;
+                gameState.lastUpdate = Date.now();
+                broadcastGameState();
+            }
+
+            res.json({ deleted: true });
+        } catch (err) {
+            if (err.status) {
+                return res.status(err.status).json({ errors: [err.message] });
+            }
+            console.error('Failed to delete game:', err);
+            res.status(500).json({ errors: ['Failed to delete game.'] });
+        }
+    });
+
     router.get('/:id', async (req, res) => {
         const { id } = req.params;
         if (!UUID_RE.test(id)) {

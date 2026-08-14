@@ -284,6 +284,14 @@
             border: 2px solid var(--btn-secondary-border);
         }
 
+        .delete-btn {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            background: rgba(255, 107, 107, 0.15);
+            color: var(--error-text);
+            border: 2px solid var(--error-text);
+        }
+
         .active-badge {
             padding: 6px 14px;
             font-size: 0.85em;
@@ -501,12 +509,17 @@
                         </div>
                         <a class="activate-btn" style="text-decoration:none; display:inline-block;" href="edit-photos.html?id=${encodeURIComponent(game.id)}">✏️ Edit</a>
                         ${actionHtml}
+                        <button class="delete-btn" data-game-id="${game.id}" data-game-name="${game.name.replace(/"/g, '&quot;')}" ${auth.isUnlocked() ? '' : 'disabled title="Unlock with the host password to delete"'}>🗑️ Delete</button>
                     </div>
                 `;
             }).join('');
 
             listEl.querySelectorAll('.activate-btn').forEach(btn => {
                 btn.addEventListener('click', () => activateGame(btn.dataset.gameId));
+            });
+
+            listEl.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => deleteGame(btn.dataset.gameId, btn.dataset.gameName));
             });
         }
 
@@ -534,6 +547,35 @@
                 renderGames(lastGames);
             } catch (err) {
                 showMessages(['Failed to activate game: ' + err.message], 'error');
+            }
+        }
+
+        async function deleteGame(gameId, gameName) {
+            if (!confirm(`Delete "${gameName}"? This can't be undone. Photos attached to its questions are not deleted.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/games/' + encodeURIComponent(gameId), {
+                    method: 'DELETE',
+                    headers: { 'x-host-password': auth.getPassword() }
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    if (res.status === 401) {
+                        auth.resetToLocked();
+                        showMessages(['Host password was rejected — please unlock again.'], 'error');
+                        return;
+                    }
+                    showMessages(data.errors || ['Failed to delete game.'], 'error');
+                    return;
+                }
+
+                if (activeGameId === gameId) activeGameId = null;
+                await loadGames();
+            } catch (err) {
+                showMessages(['Failed to delete game: ' + err.message], 'error');
             }
         }
 
