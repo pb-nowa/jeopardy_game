@@ -1279,7 +1279,7 @@
             displayEl.style.display = 'block';
 
             const teams = [1, 2, 3, 4];
-            let rowsHtml = buildFinalJeopardyQuestionHtml();
+            let rowsHtml = buildFinalJeopardyQuestionHtml(fj.phase);
 
             if (fj.phase === 'wagering') {
                 rowsHtml += teams.map(team => {
@@ -1388,13 +1388,18 @@
         }
 
         // Category/hint/correct-answer, relayed from the board's client-side gameData
-        // (the server never holds the trivia content itself). Shown to the host the
-        // same way any other question is, throughout every Final Jeopardy phase —
-        // unlike the shared board, which withholds the correct answer until every
-        // team has been individually revealed and scored.
-        function buildFinalJeopardyQuestionHtml() {
+        // (the server never holds the trivia content itself). Real Final Jeopardy has
+        // teams wager knowing only the category — the clue itself isn't revealed until
+        // wagers are locked — so the host's screen holds back the hint/answer the same
+        // way, rather than spoiling it before the board does.
+        function buildFinalJeopardyQuestionHtml(phase) {
             const data = window.currentFinalJeopardyData;
             if (!data) return '';
+
+            if (phase === 'wagering') {
+                return `<div class="jeopardy-value">${escapeHtmlText(data.category || '')}</div>`;
+            }
+
             const imgHtml = data.imageUrl
                 ? `<img src="${escapeHtmlText(data.imageUrl)}" style="max-width:100%; max-height:200px; display:block; margin:0 auto 10px auto; border-radius:10px;">`
                 : '';

@@ -569,7 +569,7 @@
                 <span id="finalText">Final Jeopardy</span>
             </div>
             <div class="final-timer-section" id="finalTimerSection" style="display: none;">
-                <button class="timer-btn" id="finalTimerBtn" onclick="toggleFinalTimer()">Start 30-Second Timer</button>
+                <button class="timer-btn" id="finalTimerBtn" onclick="toggleFinalTimer()">Start 90-Second Timer</button>
                 <button class="timer-btn" id="finalStopBtn" onclick="stopFinalTimer()" style="background-color: #cc0000; display: none;">Stop Timer</button>
             </div>
             <div class="progress-bar" id="finalProgressBar"></div>
@@ -953,7 +953,7 @@
             timerSection.style.display = "none";
         }
 
-        // Transition to the Final Jeopardy hint view and start its 30s timer.
+        // Transition to the Final Jeopardy hint view and start its 90s timer.
         // Shared by the local click-driven toggleFinal() state machine and the
         // remote finalJeopardyWagersLocked event (so the board auto-advances the
         // instant the host locks wagers, without needing a click on the board).
@@ -1103,8 +1103,8 @@
             stopBtn.style.display = "inline-block";
             finalTimerRunning = true;
             
-            // Create 30 timer pieces
-            for (let i = 0; i < 30; i++) {
+            // Create 90 timer pieces
+            for (let i = 0; i < 90; i++) {
                 const piece = document.createElement("div");
                 piece.className = "bar-piece";
                 bar.appendChild(piece);
