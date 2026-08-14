@@ -762,16 +762,32 @@
         });
 
         function showRound(n) {
+            const previousRound = currentRound;
             rounds.forEach((id, i) => {
                 document.getElementById(id).classList.toggle("active", i === n - 1);
             });
             currentRound = n;
 
-            // Opening the Final Jeopardy tab kicks off wagering on all player
-            // screens. The server no-ops this if Final Jeopardy is already in
-            // progress (or done), so it's safe to emit on every visit to the tab.
             if (n === 4 && jeopardySocket && jeopardySocket.connected) {
+                // Opening the Final Jeopardy tab kicks off wagering on all player
+                // screens. The server no-ops this if Final Jeopardy is already in
+                // progress (or done), so it's safe to emit on every visit to the tab.
                 jeopardySocket.emit('enterFinalJeopardy');
+                // The category/hint/correct-answer only live in this page's gameData,
+                // not on the server, so relay them for the host's screen to display —
+                // same as it sees every other question.
+                if (gameData && gameData.finalJeopardy) {
+                    jeopardySocket.emit('finalJeopardyQuestionData', {
+                        category: gameData.finalJeopardy.category,
+                        hint: gameData.finalJeopardy.hint,
+                        answer: gameData.finalJeopardy.answer,
+                        imageUrl: gameData.finalJeopardy.imageUrl
+                    });
+                }
+            } else if (previousRound === 4 && n !== 4 && jeopardySocket && jeopardySocket.connected) {
+                // Leaving the Final Jeopardy tab returns the host and players to their
+                // normal views, since those are driven entirely off finalJeopardy.phase.
+                jeopardySocket.emit('resetFinalJeopardy');
             }
         }
 
@@ -950,10 +966,34 @@
             }
         }
 
-        // Transition to the Final Jeopardy answer view. Shared by toggleFinal()
-        // and the remote finalJeopardyAnswersLocked event. Explicitly stops the
-        // timer (unlike the click-driven hint->answer step, a host-triggered lock
-        // can land mid-countdown and would otherwise leave it silently ticking).
+        // Neutral placeholder shown the instant answers are locked — the real
+        // correct answer stays hidden from the board until every team has been
+        // individually revealed and scored (showFinalAnswer, below).
+        function showFinalAnswersLockedPlaceholder() {
+            const finalText = document.getElementById("finalText");
+            const timerSection = document.getElementById("finalTimerSection");
+            finalText.innerHTML = "Final Jeopardy Answers Locked!<br><br>Awaiting reveal...";
+            finalJeopardyState = "locked";
+            timerSection.style.display = "none";
+            if (finalTimerRunning) {
+                stopFinalTimer();
+            }
+        }
+
+        // Dramatic per-team reveal, driven by the host clicking a team on their
+        // panel — mirrors the real show, where each team's response is shown before
+        // the correct answer itself. Triggered by finalJeopardyTeamAnswerRevealed.
+        function showFinalTeamAnswer(team, answerText) {
+            const finalText = document.getElementById("finalText");
+            const teamColor = getTeamColor(team);
+            const teamName = getTeamName(team);
+            finalText.innerHTML = `<span style="color:${teamColor};">${teamName}'s Answer:</span><br><br>` + (answerText || '<em>(no answer submitted)</em>');
+            finalJeopardyState = "team-answer";
+        }
+
+        // Transition to the Final Jeopardy answer view — the real correct answer.
+        // Shared by toggleFinal()'s manual cycle and the remote finalJeopardyComplete
+        // event (auto-fires once every team has been scored).
         function showFinalAnswer() {
             const finalText = document.getElementById("finalText");
             const timerSection = document.getElementById("finalTimerSection");
@@ -965,24 +1005,30 @@
             }
         }
 
-        function toggleFinal() {
+        // Resets the board's Final Jeopardy view back to its idle title screen.
+        // Shared by toggleFinal()'s manual cycle and the remote finalJeopardyReset
+        // event (fired both by the host's explicit reset and by navigating away from
+        // the Final Jeopardy tab).
+        function resetFinalJeopardyView() {
             const finalText = document.getElementById("finalText");
             const timerSection = document.getElementById("finalTimerSection");
+            finalText.innerHTML = "Final Jeopardy";
+            finalJeopardyState = "title";
+            timerSection.style.display = "none";
+            if (finalTimerRunning) {
+                stopFinalTimer();
+            }
+        }
 
+        function toggleFinal() {
             if (finalJeopardyState === "title") {
                 showFinalCategory();
             } else if (finalJeopardyState === "category") {
                 showFinalHint();
             } else if (finalJeopardyState === "hint") {
-                showFinalAnswer();
+                showFinalAnswersLockedPlaceholder();
             } else {
-                finalText.innerHTML = "Final Jeopardy";
-                finalJeopardyState = "title";
-                timerSection.style.display = "none";
-                // Stop timer if running when resetting
-                if (finalTimerRunning) {
-                    stopFinalTimer();
-                }
+                resetFinalJeopardyView();
             }
         }
 
@@ -1427,7 +1473,8 @@
                     // Resync the Final Jeopardy view on first connect and whenever the
                     // phase changes underneath us (e.g. this tab reconnected mid-round
                     // and missed the one-shot lock events entirely).
-                    const fjPhase = (gameState && gameState.finalJeopardy && gameState.finalJeopardy.phase) || 'inactive';
+                    const fj = gameState && gameState.finalJeopardy;
+                    const fjPhase = (fj && fj.phase) || 'inactive';
                     if (fjPhase !== lastSeenFinalJeopardyPhase) {
                         lastSeenFinalJeopardyPhase = fjPhase;
                         if (fjPhase !== 'inactive') {
@@ -1435,11 +1482,26 @@
                             if (finalJeopardyState === 'title') {
                                 showFinalCategory();
                             }
-                            if (fjPhase === 'answering' && finalJeopardyState !== 'hint' && finalJeopardyState !== 'answer') {
-                                showFinalHint();
-                            } else if ((fjPhase === 'resolving' || fjPhase === 'complete') && finalJeopardyState !== 'answer') {
-                                if (finalJeopardyState !== 'hint') showFinalHint();
-                                showFinalAnswer();
+                            if (fjPhase === 'answering') {
+                                if (finalJeopardyState !== 'hint' && finalJeopardyState !== 'locked' &&
+                                    finalJeopardyState !== 'team-answer' && finalJeopardyState !== 'answer') {
+                                    showFinalHint();
+                                }
+                            } else if (fjPhase === 'resolving') {
+                                // The correct answer stays hidden here — only the neutral
+                                // placeholder, or the last team the host revealed, both of
+                                // which the board (unlike players) legitimately already has
+                                // in its own gameState.
+                                if (finalJeopardyState !== 'locked' && finalJeopardyState !== 'team-answer') {
+                                    showFinalAnswersLockedPlaceholder();
+                                }
+                                if (fj.revealedTeam) {
+                                    showFinalTeamAnswer(fj.revealedTeam, fj.answers[fj.revealedTeam]);
+                                }
+                            } else if (fjPhase === 'complete') {
+                                if (finalJeopardyState !== 'answer') {
+                                    showFinalAnswer();
+                                }
                             }
                         }
                     }
@@ -1500,13 +1562,37 @@
                     }
                 });
 
-                // Host locked Final Jeopardy answers — advance the board to the answer.
+                // Host locked Final Jeopardy answers — advance the board to the neutral
+                // "locked" placeholder. The real correct answer stays hidden until
+                // finalJeopardyComplete fires, after every team has been individually
+                // revealed and scored.
                 jeopardySocket.on('finalJeopardyAnswersLocked', function() {
                     console.log('Final Jeopardy answers locked');
-                    if (finalJeopardyState !== 'answer') {
-                        showRound(4);
-                        showFinalAnswer();
-                    }
+                    showRound(4);
+                    showFinalAnswersLockedPlaceholder();
+                });
+
+                // Host clicked a team on their panel — dramatically reveal that team's
+                // submitted answer on the board (not the correct answer).
+                jeopardySocket.on('finalJeopardyTeamAnswerRevealed', function(data) {
+                    console.log('Final Jeopardy team answer revealed:', data);
+                    showRound(4);
+                    showFinalTeamAnswer(data.team, data.answer);
+                });
+
+                // Every team has been scored — safe to reveal the real correct answer.
+                jeopardySocket.on('finalJeopardyComplete', function() {
+                    console.log('Final Jeopardy complete, revealing correct answer');
+                    showRound(4);
+                    showFinalAnswer();
+                });
+
+                // Host reset Final Jeopardy (explicit reset button, or navigating the
+                // board away from the Final Jeopardy tab) — return to the idle title
+                // screen so a future visit to the tab starts clean.
+                jeopardySocket.on('finalJeopardyReset', function() {
+                    console.log('Final Jeopardy reset');
+                    resetFinalJeopardyView();
                 });
 
                 jeopardySocket.on('teamScoresReset', function() {

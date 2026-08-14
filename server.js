@@ -62,7 +62,9 @@ let gameState = {
         phase: 'inactive', // 'inactive' | 'wagering' | 'answering' | 'resolving' | 'complete'
         wagers: { 1: null, 2: null, 3: null, 4: null },
         answers: { 1: null, 2: null, 3: null, 4: null },
-        resolved: { 1: false, 2: false, 3: false, 4: false }
+        resolved: { 1: false, 2: false, 3: false, 4: false },
+        revealed: { 1: false, 2: false, 3: false, 4: false }, // host has shown this team's answer on the board at least once
+        revealedTeam: null // which team's answer the board is currently displaying, for reconnect resync
     },
     activeGameId: null, // id of the uploaded game currently loaded on the board (routes/games.js)
     activeGameContentVersion: 0, // bumped whenever a question in the active game is edited, so jeopardy.html knows to reload even when activeGameId itself hasn't changed
@@ -711,6 +713,27 @@ io.on('connection', (socket) => {
         console.log('Final Jeopardy: answers locked, resolving');
     });
 
+    // Host-controlled per-team reveal: unlike the real Final Jeopardy answer (kept
+    // hidden until every team is scored), a team's own submitted answer is fair to
+    // show the whole party the moment the host clicks through to it, so this is a
+    // full broadcast rather than the redacted gameStateUpdate path.
+    socket.on('revealFinalJeopardyTeamAnswer', (data) => {
+        if (gameState.finalJeopardy.phase !== 'resolving') return;
+        const team = parseInt(data && data.team, 10);
+        if (!(team >= 1 && team <= 4)) return;
+
+        gameState.finalJeopardy.revealed[team] = true;
+        gameState.finalJeopardy.revealedTeam = team;
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+        io.emit('finalJeopardyTeamAnswerRevealed', {
+            team,
+            answer: gameState.finalJeopardy.answers[team]
+        });
+
+        console.log(`Final Jeopardy: revealed Team ${team}'s answer`);
+    });
+
     function resolveFinalJeopardyTeam(team, correct) {
         if (gameState.finalJeopardy.phase !== 'resolving') return;
         if (gameState.finalJeopardy.resolved[team]) return;
@@ -742,6 +765,13 @@ io.on('connection', (socket) => {
             newTeamScore: gameState.teamScores[team]
         });
 
+        if (allResolved) {
+            // Signal only — every team's result is already public via
+            // finalJeopardyTeamResolved above. This just tells the board it's safe
+            // to reveal the actual correct answer now that nothing is left to protect.
+            io.emit('finalJeopardyComplete');
+        }
+
         console.log(`Final Jeopardy resolved: Team ${team} ${correct ? 'correct' : 'wrong'} (wager $${wager}). New score: ${gameState.teamScores[team]}`);
     }
 
@@ -760,7 +790,9 @@ io.on('connection', (socket) => {
             phase: 'inactive',
             wagers: { 1: null, 2: null, 3: null, 4: null },
             answers: { 1: null, 2: null, 3: null, 4: null },
-            resolved: { 1: false, 2: false, 3: false, 4: false }
+            resolved: { 1: false, 2: false, 3: false, 4: false },
+            revealed: { 1: false, 2: false, 3: false, 4: false },
+            revealedTeam: null
         };
         gameState.lastUpdate = Date.now();
         broadcastGameState();
@@ -844,7 +876,9 @@ io.on('connection', (socket) => {
                 phase: 'inactive',
                 wagers: { 1: null, 2: null, 3: null, 4: null },
                 answers: { 1: null, 2: null, 3: null, 4: null },
-                resolved: { 1: false, 2: false, 3: false, 4: false }
+                resolved: { 1: false, 2: false, 3: false, 4: false },
+                revealed: { 1: false, 2: false, 3: false, 4: false },
+                revealedTeam: null
             },
             teamScores: {
                 1: 0,
@@ -878,6 +912,15 @@ io.on('connection', (socket) => {
         
         // Broadcast to all connected clients (especially host)
         io.emit('jeopardyQuestionUpdate', questionData);
+    });
+
+    // The Final Jeopardy category/hint/correct-answer live only in the board's
+    // client-side gameData, not in server state — the board relays them here purely
+    // so the host's screen can show them too, the same way it sees every other
+    // question. This never reaches players, and the board itself withholds the
+    // correct answer from its own public display until every team is scored.
+    socket.on('finalJeopardyQuestionData', (data) => {
+        io.emit('finalJeopardyQuestionDataUpdate', data);
     });
 
     // Handle disconnection

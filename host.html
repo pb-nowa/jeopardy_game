@@ -506,6 +506,13 @@
 		.dd-team-btn.dd-team-3 { background: #ffe66d; }
 		.dd-team-btn.dd-team-4 { background: #a8e6cf; }
 
+		.dd-team-score {
+			display: block;
+			font-size: 0.8em;
+			font-weight: normal;
+			opacity: 0.75;
+		}
+
 		.dd-team-btn.selected {
 			border-color: #ffd700;
 			box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
@@ -563,6 +570,11 @@
 			font-style: italic;
 		}
 
+		.fj-cap {
+			opacity: 0.65;
+			font-size: 0.85em;
+		}
+
 		.fj-result {
 			font-weight: bold;
 			white-space: nowrap;
@@ -605,10 +617,10 @@
 			<div id="dailyDoubleWagerForm" style="display: none;">
 				<div class="scoring-label">Who's answering, and for how much?</div>
 				<div class="dd-team-select" id="ddTeamSelect">
-					<button type="button" class="dd-team-btn dd-team-1" data-team="1">Team 1</button>
-					<button type="button" class="dd-team-btn dd-team-2" data-team="2">Team 2</button>
-					<button type="button" class="dd-team-btn dd-team-3" data-team="3">Team 3</button>
-					<button type="button" class="dd-team-btn dd-team-4" data-team="4">Team 4</button>
+					<button type="button" class="dd-team-btn dd-team-1" data-team="1">Team 1<br><span class="dd-team-score" id="ddTeamScore1">$0</span></button>
+					<button type="button" class="dd-team-btn dd-team-2" data-team="2">Team 2<br><span class="dd-team-score" id="ddTeamScore2">$0</span></button>
+					<button type="button" class="dd-team-btn dd-team-3" data-team="3">Team 3<br><span class="dd-team-score" id="ddTeamScore3">$0</span></button>
+					<button type="button" class="dd-team-btn dd-team-4" data-team="4">Team 4<br><span class="dd-team-score" id="ddTeamScore4">$0</span></button>
 				</div>
 				<input type="number" id="dailyDoubleWagerAmount" class="wager-input" placeholder="Wager amount" min="1">
 				<div id="dailyDoubleWagerError" class="wager-error" style="display: none;"></div>
@@ -814,6 +826,11 @@
                 const teamScore = gameState && gameState.teamScores ? gameState.teamScores[teamNum] || 0 : 0;
                 scoreEl.textContent = `$${teamScore.toLocaleString()}`;
 
+                // Mirror the score onto the Daily Double wager form's team buttons, so
+                // the host has a wager cap reference right where they're entering one.
+                const ddScoreEl = document.getElementById(`ddTeamScore${teamNum}`);
+                if (ddScoreEl) ddScoreEl.textContent = `$${teamScore.toLocaleString()}`;
+
                 if (teammates.length === 0) {
                     playersEl.innerHTML = '<div style="text-align: center; opacity: 0.5;">No players</div>';
                 } else {
@@ -974,6 +991,15 @@
         window.addEventListener('jeopardyQuestionReceived', (event) => {
             console.log('Host: Jeopardy question received:', event.detail);
             updateJeopardyDisplay(event.detail);
+        });
+
+        // Board relayed the Final Jeopardy category/hint/correct-answer (it only
+        // lives in the board's client-side gameData, not on the server). Store it
+        // and re-render immediately — this arrives independently of gameStateUpdate.
+        window.addEventListener('finalJeopardyQuestionDataReceived', (event) => {
+            console.log('Host: Final Jeopardy question data received:', event.detail);
+            window.currentFinalJeopardyData = event.detail;
+            updateFinalJeopardyPanel(getGameState());
         });
 
         // Listen for clear jeopardy display command
@@ -1232,24 +1258,29 @@
             if (!fj || fj.phase === 'inactive') {
                 displayEl.style.display = 'none';
                 contentEl.innerHTML = '';
+                window.currentFinalJeopardyData = null;
                 return;
             }
 
             displayEl.style.display = 'block';
 
             const teams = [1, 2, 3, 4];
-            let rowsHtml = '';
+            let rowsHtml = buildFinalJeopardyQuestionHtml();
 
             if (fj.phase === 'wagering') {
-                rowsHtml = teams.map(team => {
+                rowsHtml += teams.map(team => {
                     const wager = fj.wagers[team];
+                    const cap = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
                     const wagerText = wager === null || wager === undefined
                         ? '<span class="fj-pending">no wager yet</span>'
                         : `Wager: $${wager.toLocaleString()}`;
                     return `
                         <div class="fj-team-row">
                             <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
-                            <div class="fj-team-info">${wagerText}</div>
+                            <div class="fj-team-info">
+                                <div>${wagerText}</div>
+                                <div class="fj-cap">Can wager up to $${cap.toLocaleString()}</div>
+                            </div>
                         </div>
                     `;
                 }).join('');
@@ -1259,7 +1290,7 @@
                     </div>
                 `;
             } else if (fj.phase === 'answering') {
-                rowsHtml = teams.map(team => {
+                rowsHtml += teams.map(team => {
                     const wager = fj.wagers[team] || 0;
                     const answer = fj.answers[team];
                     const answerText = answer
@@ -1281,23 +1312,30 @@
                     </div>
                 `;
             } else {
-                // 'resolving' or 'complete'
-                rowsHtml = teams.map(team => {
+                // 'resolving' or 'complete'. The host always sees each team's real
+                // answer here (they need to read it to judge it) — what's gated on
+                // fj.revealed[team] is only whether it's been shown on the shared
+                // board yet, which is what unlocks scoring for that team.
+                rowsHtml += teams.map(team => {
                     const wager = fj.wagers[team] || 0;
                     const answer = fj.answers[team];
                     const answerText = answer ? escapeHtmlText(answer) : '<span class="fj-pending">no answer</span>';
                     const resolved = fj.resolved[team];
+                    const revealed = fj.revealed[team];
                     let actionHtml;
                     if (resolved) {
-                        // Result correctness itself isn't tracked client-side once resolved,
-                        // but a resolved team always has a final score consistent with the
-                        // wager sign already applied server-side, so just show it's scored.
                         actionHtml = `<span class="fj-result">✅ Scored</span>`;
-                    } else {
+                    } else if (revealed) {
                         actionHtml = `
                             <div class="fj-actions">
                                 <button class="control-btn enable" onclick="markFinalJeopardyCorrect(${team})">✅ Correct</button>
                                 <button class="control-btn disable" onclick="markFinalJeopardyWrong(${team})">❌ Wrong</button>
+                            </div>
+                        `;
+                    } else {
+                        actionHtml = `
+                            <div class="fj-actions">
+                                <button class="control-btn secondary" onclick="revealFinalJeopardyTeamAnswer(${team})">👁 Reveal on Board</button>
                             </div>
                         `;
                     }
@@ -1321,6 +1359,30 @@
             `;
 
             contentEl.innerHTML = rowsHtml;
+        }
+
+        // Category/hint/correct-answer, relayed from the board's client-side gameData
+        // (the server never holds the trivia content itself). Shown to the host the
+        // same way any other question is, throughout every Final Jeopardy phase —
+        // unlike the shared board, which withholds the correct answer until every
+        // team has been individually revealed and scored.
+        function buildFinalJeopardyQuestionHtml() {
+            const data = window.currentFinalJeopardyData;
+            if (!data) return '';
+            const imgHtml = data.imageUrl
+                ? `<img src="${escapeHtmlText(data.imageUrl)}" style="max-width:100%; max-height:200px; display:block; margin:0 auto 10px auto; border-radius:10px;">`
+                : '';
+            return `
+                <div class="jeopardy-value">${escapeHtmlText(data.category || '')}</div>
+                <div class="jeopardy-question">${imgHtml}${escapeHtmlText(data.hint || '')}</div>
+                <div class="jeopardy-answer"><strong>Answer:</strong> ${escapeHtmlText(data.answer || '')}</div>
+            `;
+        }
+
+        function revealFinalJeopardyTeamAnswer(team) {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('revealFinalJeopardyTeamAnswer', { team });
+            }
         }
 
         // Final Jeopardy answers are player-typed free text, so (unlike the mostly

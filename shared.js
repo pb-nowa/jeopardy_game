@@ -91,6 +91,10 @@ function initializeSocket() {
         console.log('Socket received clearJeopardyDisplay event');
         window.dispatchEvent(new CustomEvent('clearJeopardyDisplayReceived'));
     });
+
+    socket.on('finalJeopardyQuestionDataUpdate', (data) => {
+        window.dispatchEvent(new CustomEvent('finalJeopardyQuestionDataReceived', { detail: data }));
+    });
     
     socket.on('teamScoreUpdated', (data) => {
         console.log('Socket received teamScoreUpdated event:', data);

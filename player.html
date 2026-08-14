@@ -546,6 +546,12 @@
             margin-bottom: 10px;
         }
 
+        .fj-cap {
+            color: var(--text-muted);
+            font-size: 0.85em;
+            margin-bottom: 8px;
+        }
+
         .fj-submit-btn {
             width: 100%;
             padding: 14px;
@@ -809,6 +815,7 @@
                             <div class="fj-current-label">Current Wager</div>
                             <div class="fj-current-value" id="fjCurrentWager"></div>
                         </div>
+                        <div class="fj-cap" id="fjWagerCap"></div>
                         <input type="number" class="fj-input" id="fjWagerInput" placeholder="Enter wager" min="0" max="${maxWager}">
                         <div class="fj-error" id="fjWagerError" style="display: none;"></div>
                         <button class="fj-submit-btn" onclick="submitFinalWager()">Submit Wager</button>
@@ -859,6 +866,8 @@
                 const maxWager = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
                 const input = document.getElementById('fjWagerInput');
                 if (input) input.max = maxWager;
+                const capEl = document.getElementById('fjWagerCap');
+                if (capEl) capEl.textContent = `You can wager up to $${maxWager.toLocaleString()}`;
             } else if (fj.phase === 'answering') {
                 statusEl.textContent = 'Final Jeopardy: submit your answer!';
                 statusEl.className = 'status enabled';
