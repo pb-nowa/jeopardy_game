@@ -641,6 +641,11 @@
         let currentRound = 1;
         let currentActiveGameId = null; // id of the uploaded game currently loaded, or null for the default hints.json
         let currentActiveGameContentVersion = 0; // bumped server-side when a question in the active game is edited
+        // Last Final Jeopardy phase this board has rendered. Unlike the rest of the
+        // board (declarative, one-shot lock events), this is the one bit of state we
+        // must resync on reconnect/refresh, since finalJeopardyState otherwise has no
+        // way to know it's out of sync with the server after coming back.
+        let lastSeenFinalJeopardyPhase = null;
 
         // Fetches a specific uploaded game's data, falling back to the bundled hints.json
         // when no game is active (or the active one fails to load) — preserves today's
@@ -761,6 +766,13 @@
                 document.getElementById(id).classList.toggle("active", i === n - 1);
             });
             currentRound = n;
+
+            // Opening the Final Jeopardy tab kicks off wagering on all player
+            // screens. The server no-ops this if Final Jeopardy is already in
+            // progress (or done), so it's safe to emit on every visit to the tab.
+            if (n === 4 && jeopardySocket && jeopardySocket.connected) {
+                jeopardySocket.emit('enterFinalJeopardy');
+            }
         }
 
         function clearBoard(roundNum) {
@@ -913,26 +925,56 @@
             }
         };
 
+        // Transition to the Final Jeopardy category-reveal view. Shared by
+        // toggleFinal() and the reconnect resync logic below.
+        function showFinalCategory() {
+            const finalText = document.getElementById("finalText");
+            const timerSection = document.getElementById("finalTimerSection");
+            finalText.innerHTML = "Final Jeopardy Category:<br><br>" + gameData.finalJeopardy.category;
+            finalJeopardyState = "category";
+            timerSection.style.display = "none";
+        }
+
+        // Transition to the Final Jeopardy hint view and start its 30s timer.
+        // Shared by the local click-driven toggleFinal() state machine and the
+        // remote finalJeopardyWagersLocked event (so the board auto-advances the
+        // instant the host locks wagers, without needing a click on the board).
+        function showFinalHint() {
+            const finalText = document.getElementById("finalText");
+            const timerSection = document.getElementById("finalTimerSection");
+            finalText.innerHTML = "Final Jeopardy Hint:<br><br>" + renderHintContent(gameData.finalJeopardy.hint, gameData.finalJeopardy.imageUrl);
+            finalJeopardyState = "hint";
+            timerSection.style.display = "block";
+            if (!finalTimerRunning) {
+                startFinalTimer();
+            }
+        }
+
+        // Transition to the Final Jeopardy answer view. Shared by toggleFinal()
+        // and the remote finalJeopardyAnswersLocked event. Explicitly stops the
+        // timer (unlike the click-driven hint->answer step, a host-triggered lock
+        // can land mid-countdown and would otherwise leave it silently ticking).
+        function showFinalAnswer() {
+            const finalText = document.getElementById("finalText");
+            const timerSection = document.getElementById("finalTimerSection");
+            finalText.innerHTML = "Final Jeopardy Answer:<br><br>" + gameData.finalJeopardy.answer;
+            finalJeopardyState = "answer";
+            timerSection.style.display = "none";
+            if (finalTimerRunning) {
+                stopFinalTimer();
+            }
+        }
+
         function toggleFinal() {
             const finalText = document.getElementById("finalText");
             const timerSection = document.getElementById("finalTimerSection");
-            
+
             if (finalJeopardyState === "title") {
-                finalText.innerHTML = "Final Jeopardy Category:<br><br>" + gameData.finalJeopardy.category;
-                finalJeopardyState = "category";
-                timerSection.style.display = "none";
+                showFinalCategory();
             } else if (finalJeopardyState === "category") {
-                finalText.innerHTML = "Final Jeopardy Hint:<br><br>" + renderHintContent(gameData.finalJeopardy.hint, gameData.finalJeopardy.imageUrl);
-                finalJeopardyState = "hint";
-                timerSection.style.display = "block";
-                // Automatically start the 30-second timer
-                if (!finalTimerRunning) {
-                    startFinalTimer();
-                }
+                showFinalHint();
             } else if (finalJeopardyState === "hint") {
-                finalText.innerHTML = "Final Jeopardy Answer:<br><br>" + gameData.finalJeopardy.answer;
-                finalJeopardyState = "answer";
-                timerSection.style.display = "none";
+                showFinalAnswer();
             } else {
                 finalText.innerHTML = "Final Jeopardy";
                 finalJeopardyState = "title";
@@ -1381,8 +1423,28 @@
                     if (gameSwitched || contentChanged) {
                         reloadActiveGame(newActiveGameId, newContentVersion, gameSwitched);
                     }
+
+                    // Resync the Final Jeopardy view on first connect and whenever the
+                    // phase changes underneath us (e.g. this tab reconnected mid-round
+                    // and missed the one-shot lock events entirely).
+                    const fjPhase = (gameState && gameState.finalJeopardy && gameState.finalJeopardy.phase) || 'inactive';
+                    if (fjPhase !== lastSeenFinalJeopardyPhase) {
+                        lastSeenFinalJeopardyPhase = fjPhase;
+                        if (fjPhase !== 'inactive') {
+                            showRound(4);
+                            if (finalJeopardyState === 'title') {
+                                showFinalCategory();
+                            }
+                            if (fjPhase === 'answering' && finalJeopardyState !== 'hint' && finalJeopardyState !== 'answer') {
+                                showFinalHint();
+                            } else if ((fjPhase === 'resolving' || fjPhase === 'complete') && finalJeopardyState !== 'answer') {
+                                if (finalJeopardyState !== 'hint') showFinalHint();
+                                showFinalAnswer();
+                            }
+                        }
+                    }
                 });
-                
+
                 // Listen for scoring events
                 jeopardySocket.on('buzzMarkedCorrect', function(data) {
                     console.log('Buzz marked correct:', data);
@@ -1425,6 +1487,25 @@
                     if (modal && modal.style.display === 'flex' && !showingAnswer && currentContent) {
                         modalContent.innerHTML = '<button class="modal-close" onclick="closeModal()">&times;</button>' + currentContent.answer;
                         showingAnswer = true;
+                    }
+                });
+
+                // Host locked Final Jeopardy wagers — advance the board from the
+                // category view to the hint, same auto-advance pattern as Daily Double.
+                jeopardySocket.on('finalJeopardyWagersLocked', function() {
+                    console.log('Final Jeopardy wagers locked');
+                    if (finalJeopardyState !== 'hint' && finalJeopardyState !== 'answer') {
+                        showRound(4);
+                        showFinalHint();
+                    }
+                });
+
+                // Host locked Final Jeopardy answers — advance the board to the answer.
+                jeopardySocket.on('finalJeopardyAnswersLocked', function() {
+                    console.log('Final Jeopardy answers locked');
+                    if (finalJeopardyState !== 'answer') {
+                        showRound(4);
+                        showFinalAnswer();
                     }
                 });
 

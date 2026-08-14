@@ -58,6 +58,12 @@ let gameState = {
     currentQuestion: null,
     currentQuestionValue: 0, // Current question point value
     currentDailyDoubleWager: null, // {team, amount} once submitted for the current Daily Double, cleared on resolution or new question
+    finalJeopardy: {
+        phase: 'inactive', // 'inactive' | 'wagering' | 'answering' | 'resolving' | 'complete'
+        wagers: { 1: null, 2: null, 3: null, 4: null },
+        answers: { 1: null, 2: null, 3: null, 4: null },
+        resolved: { 1: false, 2: false, 3: false, 4: false }
+    },
     activeGameId: null, // id of the uploaded game currently loaded on the board (routes/games.js)
     activeGameContentVersion: 0, // bumped whenever a question in the active game is edited, so jeopardy.html knows to reload even when activeGameId itself hasn't changed
     teamScores: {
@@ -107,11 +113,40 @@ function getGameStateForHost() {
     };
 }
 
+// Redacts other teams' Final Jeopardy wagers/answers so a player never sees a rival
+// team's secret value before the host's public reveal — only the viewer's own team's
+// entries keep their real value; every other team's entry is null regardless of
+// whether that team has actually submitted (no partial "submitted" signal either —
+// full secrecy is simplest to reason about and nothing else needs it). viewerTeam is
+// null for a not-yet-registered/not-yet-identified socket, which redacts everything.
+function getGameStateForPlayer(viewerTeam) {
+    const redactedWagers = {};
+    const redactedAnswers = {};
+    for (const team of [1, 2, 3, 4]) {
+        redactedWagers[team] = team === viewerTeam ? gameState.finalJeopardy.wagers[team] : null;
+        redactedAnswers[team] = team === viewerTeam ? gameState.finalJeopardy.answers[team] : null;
+    }
+
+    return {
+        ...gameState,
+        finalJeopardy: {
+            ...gameState.finalJeopardy,
+            wagers: redactedWagers,
+            answers: redactedAnswers
+        }
+    };
+}
+
+function getViewerTeamForSocket(socket) {
+    const player = gameState.players.find(p => p.socketId === socket.id);
+    return player ? player.team : null;
+}
+
 function broadcastGameState() {
     // Send different game states to different client types
     io.sockets.sockets.forEach((socket) => {
         if (socket.clientType === 'player') {
-            socket.emit('gameStateUpdate', gameState); // Players get full state
+            socket.emit('gameStateUpdate', getGameStateForPlayer(getViewerTeamForSocket(socket)));
         } else {
             socket.emit('gameStateUpdate', getGameStateForHost()); // Hosts get filtered state
         }
@@ -157,18 +192,21 @@ io.on('connection', (socket) => {
     
     // Track client type (will be set when they identify themselves)
     socket.clientType = 'unknown';
-    
-    // Send current game state to new client (filter out early buzzes for now)
-    socket.emit('gameStateUpdate', getGameStateForHost());
-    
+
+    // Send current game state to new client. We don't yet know whether this socket
+    // will turn out to be a player or a host, so default to the more restrictive
+    // player-redacted view (safe either way — a real host's correct full view arrives
+    // moments later once identifyClient below completes) rather than assuming host.
+    socket.emit('gameStateUpdate', getGameStateForPlayer(null));
+
     // Handle client identification
     socket.on('identifyClient', (clientType) => {
         socket.clientType = clientType; // 'host', 'player', or 'jeopardy'
         console.log(`Client ${socket.id} identified as: ${clientType}`);
-        
+
         // Send appropriate game state based on client type
         if (clientType === 'player') {
-            socket.emit('gameStateUpdate', gameState); // Players need full state for cooldowns
+            socket.emit('gameStateUpdate', getGameStateForPlayer(getViewerTeamForSocket(socket)));
         } else {
             socket.emit('gameStateUpdate', getGameStateForHost()); // Hosts get filtered state
         }
@@ -341,9 +379,11 @@ io.on('connection', (socket) => {
             
             // Send different updates based on buzz type
             if (isEarlyBuzz) {
-                // For early buzzes, send full state to the player and filtered state to others
-                socket.emit('gameStateUpdate', gameState); // Player gets full state for cooldown
-                socket.broadcast.emit('gameStateUpdate', getGameStateForHost()); // Others get filtered state
+                // broadcastGameState() already sends each socket the right shape (players
+                // get their own Final-Jeopardy-redacted view, hosts get the filtered view)
+                // — no newBuzz event for early buzzes, unlike the branch below, since
+                // those shouldn't trigger the loud "buzz!" notification.
+                broadcastGameState();
             } else {
                 // For normal buzzes, broadcast to all clients appropriately
                 broadcastGameState();
@@ -575,6 +615,160 @@ io.on('connection', (socket) => {
         console.log(`Daily Double wrong: Team ${wager.team} -$${wager.amount}. New score: ${gameState.teamScores[wager.team]}`);
     });
 
+    // Final Jeopardy: all four teams compete simultaneously (unlike Daily Double's
+    // single team), each wagering privately based on the category, then writing an
+    // answer, then getting scored individually by the host. gameState.finalJeopardy
+    // .phase gates which actions are valid at any given moment: 'inactive' ->
+    // 'wagering' -> 'answering' -> 'resolving' -> 'complete'. Player-facing broadcasts
+    // redact every team's wagers/answers except the viewer's own (see
+    // getGameStateForPlayer) until each team's individual public reveal during
+    // resolution.
+    socket.on('enterFinalJeopardy', () => {
+        // Only the first entry starts wagering — re-visiting the board's Final
+        // Jeopardy tab after progress has already begun must never reset it.
+        if (gameState.finalJeopardy.phase !== 'inactive') return;
+
+        gameState.finalJeopardy.phase = 'wagering';
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+
+        console.log('Final Jeopardy: wagering opened');
+    });
+
+    socket.on('submitFinalJeopardyWager', (data) => {
+        if (gameState.finalJeopardy.phase !== 'wagering') {
+            socket.emit('finalJeopardySubmitError', 'Wagers are not open right now.');
+            return;
+        }
+
+        const team = parseInt(data && data.team, 10);
+        const maxWager = (team >= 1 && team <= 4) ? Math.max(0, gameState.teamScores[team] || 0) : 0;
+        const amount = parseInt(data && data.amount, 10);
+
+        if (!(team >= 1 && team <= 4) || !Number.isInteger(amount) || amount < 0 || amount > maxWager) {
+            socket.emit('finalJeopardySubmitError', `Wager must be a whole number between $0 and $${maxWager}.`);
+            return;
+        }
+
+        gameState.finalJeopardy.wagers[team] = amount;
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+
+        console.log(`Final Jeopardy wager: Team ${team} -> $${amount}`);
+    });
+
+    socket.on('lockFinalJeopardyWagers', () => {
+        if (gameState.finalJeopardy.phase !== 'wagering') return;
+
+        // A team that never submitted (or has zero players) can't block the host.
+        for (const team of [1, 2, 3, 4]) {
+            if (gameState.finalJeopardy.wagers[team] === null) {
+                gameState.finalJeopardy.wagers[team] = 0;
+            }
+        }
+
+        gameState.finalJeopardy.phase = 'answering';
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+        // Signal only — no wager data in the payload. The real per-team values already
+        // flow correctly through the redacted gameStateUpdate broadcast above; this
+        // event exists purely to trigger the board's imperative transition to the hint.
+        io.emit('finalJeopardyWagersLocked');
+
+        console.log('Final Jeopardy: wagers locked, answering opened');
+    });
+
+    socket.on('submitFinalJeopardyAnswer', (data) => {
+        if (gameState.finalJeopardy.phase !== 'answering') {
+            socket.emit('finalJeopardySubmitError', 'Answers are not open right now.');
+            return;
+        }
+
+        const team = parseInt(data && data.team, 10);
+        const answer = String((data && data.answer) || '').trim().slice(0, 200);
+
+        if (!(team >= 1 && team <= 4) || !answer) {
+            socket.emit('finalJeopardySubmitError', 'Please enter an answer.');
+            return;
+        }
+
+        gameState.finalJeopardy.answers[team] = answer;
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+
+        console.log(`Final Jeopardy answer: Team ${team} submitted an answer`);
+    });
+
+    socket.on('lockFinalJeopardyAnswers', () => {
+        if (gameState.finalJeopardy.phase !== 'answering') return;
+
+        gameState.finalJeopardy.phase = 'resolving';
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+        // Signal only, same reasoning as finalJeopardyWagersLocked above.
+        io.emit('finalJeopardyAnswersLocked');
+
+        console.log('Final Jeopardy: answers locked, resolving');
+    });
+
+    function resolveFinalJeopardyTeam(team, correct) {
+        if (gameState.finalJeopardy.phase !== 'resolving') return;
+        if (gameState.finalJeopardy.resolved[team]) return;
+
+        const wager = gameState.finalJeopardy.wagers[team] || 0;
+        if (gameState.teamScores[team] !== undefined) {
+            gameState.teamScores[team] += correct ? wager : -wager;
+        }
+        gameState.finalJeopardy.resolved[team] = true;
+        gameState.lastUpdate = Date.now();
+
+        // Once every team has been scored, Final Jeopardy is complete — the board/
+        // panels keep showing the full results (nobody wants the final reveal to
+        // vanish instantly); returning to 'inactive' is an explicit host action
+        // (resetFinalJeopardy, below).
+        const allResolved = [1, 2, 3, 4].every(t => gameState.finalJeopardy.resolved[t]);
+        if (allResolved) {
+            gameState.finalJeopardy.phase = 'complete';
+        }
+
+        broadcastGameState();
+        // Full broadcast is correct here, unlike the lock events above — once a team's
+        // result is being revealed, that's the public dramatic-reveal moment in real
+        // Final Jeopardy too, with no secrecy left to protect.
+        io.emit('finalJeopardyTeamResolved', {
+            team,
+            correct,
+            wager,
+            newTeamScore: gameState.teamScores[team]
+        });
+
+        console.log(`Final Jeopardy resolved: Team ${team} ${correct ? 'correct' : 'wrong'} (wager $${wager}). New score: ${gameState.teamScores[team]}`);
+    }
+
+    socket.on('markFinalJeopardyTeamCorrect', (data) => {
+        const team = parseInt(data && data.team, 10);
+        if (team >= 1 && team <= 4) resolveFinalJeopardyTeam(team, true);
+    });
+
+    socket.on('markFinalJeopardyTeamWrong', (data) => {
+        const team = parseInt(data && data.team, 10);
+        if (team >= 1 && team <= 4) resolveFinalJeopardyTeam(team, false);
+    });
+
+    socket.on('resetFinalJeopardy', () => {
+        gameState.finalJeopardy = {
+            phase: 'inactive',
+            wagers: { 1: null, 2: null, 3: null, 4: null },
+            answers: { 1: null, 2: null, 3: null, 4: null },
+            resolved: { 1: false, 2: false, 3: false, 4: false }
+        };
+        gameState.lastUpdate = Date.now();
+        broadcastGameState();
+        io.emit('finalJeopardyReset');
+
+        console.log('Final Jeopardy reset');
+    });
+
     socket.on('resetTeamScores', () => {
         // Reset all team scores to 0
         gameState.teamScores = {
@@ -646,6 +840,12 @@ io.on('connection', (socket) => {
             currentQuestion: null,
             currentQuestionValue: 0,
             currentDailyDoubleWager: null,
+            finalJeopardy: {
+                phase: 'inactive',
+                wagers: { 1: null, 2: null, 3: null, 4: null },
+                answers: { 1: null, 2: null, 3: null, 4: null },
+                resolved: { 1: false, 2: false, 3: false, 4: false }
+            },
             teamScores: {
                 1: 0,
                 2: 0,

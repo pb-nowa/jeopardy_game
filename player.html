@@ -486,6 +486,89 @@
             transform: translateY(-2px);
         }
 
+        .fj-section {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: var(--shadow-primary);
+            text-align: center;
+        }
+
+        .fj-section h2 {
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .fj-current {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .fj-current-label {
+            color: var(--text-muted);
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .fj-current-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: var(--accent-gold);
+            word-break: break-word;
+        }
+
+        .fj-current-value.pending {
+            color: var(--text-muted);
+            font-style: italic;
+            font-weight: normal;
+        }
+
+        .fj-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid var(--accent-border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 1.1em;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .fj-error {
+            color: var(--status-locked-text);
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+
+        .fj-submit-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: var(--btn-ready-bg);
+            color: var(--btn-ready-text);
+            font-size: 1.05em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .fj-submit-btn:disabled {
+            background: var(--btn-disabled-bg);
+            color: var(--btn-disabled-text);
+            cursor: not-allowed;
+        }
+
+        .fj-waiting {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
         .cooldown-timer {
             position: absolute;
             top: 50%;
@@ -572,14 +655,19 @@
         <div class="status" id="gameStatus">Waiting for host...</div>
     </div>
 
-    <div class="team-list">
+    <div class="fj-section" id="finalJeopardySection" style="display: none;">
+        <h2>🏆 Final Jeopardy</h2>
+        <div id="finalJeopardyBody"></div>
+    </div>
+
+    <div class="team-list" id="teamListSection">
         <h3>Your Team</h3>
         <div class="teammates" id="teammates">
             <div>Loading teammates...</div>
         </div>
     </div>
 
-    <div class="buzz-section">
+    <div class="buzz-section" id="buzzSection">
         <button class="buzz-button disabled" id="buzzButton">
             🚨
             <div class="cooldown-timer" id="cooldownTimer" style="display: none;"></div>
@@ -587,7 +675,7 @@
         <div class="buzz-text" id="buzzText">Wait for host to enable buzzing</div>
     </div>
 
-    <div class="buzz-history">
+    <div class="buzz-history" id="buzzHistorySection">
         <h3>Current Question Buzzes</h3>
         <div id="buzzList">
             <div style="text-align: center; opacity: 0.5;">No buzzes yet</div>
@@ -614,23 +702,45 @@
             }
 
             currentPlayer = JSON.parse(playerData);
-            
+
             // Apply theme based on player name
             applyThemeForPlayer(currentPlayer.name);
-            
+
             // Update UI with player info
             document.getElementById('playerName').textContent = currentPlayer.name;
             document.getElementById('teamBadge').textContent = getTeamName(currentPlayer.team);
             document.getElementById('teamBadge').style.backgroundColor = getTeamColor(currentPlayer.team);
-            
+
+            // Identifies this socket as a player client so the server routes the
+            // correctly-shaped (and, for Final Jeopardy, redacted) broadcast to it.
+            // Previously this only ever happened inside registerPlayer() on first
+            // join — a page reload gets a brand-new, unidentified socket that never
+            // re-registers, so it needs identifying here too, and again on every
+            // future reconnect via the socketConnected listener below.
+            if (isConnected()) {
+                identifyClient('player');
+            }
+
             // Update UI immediately
             updateGameState();
-            
+
             // Keep player presence updated
             setInterval(() => {
                 updatePlayerPresence(currentPlayer.id);
             }, 5000);
         }
+
+        window.addEventListener('socketConnected', () => {
+            if (currentPlayer) {
+                identifyClient('player');
+            }
+            if (window.socket && !finalJeopardyListenersRegistered) {
+                finalJeopardyListenersRegistered = true;
+                window.socket.on('finalJeopardySubmitError', (message) => {
+                    showFinalJeopardyError(message);
+                });
+            }
+        });
 
         // Apply theme based on player name
         function applyThemeForPlayer(playerName) {
@@ -649,10 +759,180 @@
         // Update game state and UI
         function updateGameState() {
             const gameState = getGameState();
+            const fj = gameState && gameState.finalJeopardy;
+            if (fj && fj.phase !== 'inactive') {
+                renderFinalJeopardyView(gameState);
+                return;
+            }
+            hideFinalJeopardyView();
             updateStatus(gameState);
             updateTeammates(gameState);
             updateBuzzButton(gameState);
             updateBuzzHistory(gameState);
+        }
+
+        // Final Jeopardy doesn't fit the buzzer model — all teams wager and answer in
+        // parallel rather than racing a single buzzer — so it takes over the whole
+        // screen instead of layering onto the buzz UI. lastRenderedFjPhase gates full
+        // rebuilds of the sub-view (which recreates the <input>) to phase changes only;
+        // every other gameStateUpdate just patches the live value spans in place, so an
+        // in-progress teammate's wager/answer update never steals focus or clobbers
+        // what this player is mid-typing.
+        let lastRenderedFjPhase = null;
+        let finalJeopardyListenersRegistered = false;
+
+        function hideFinalJeopardyView() {
+            document.getElementById('finalJeopardySection').style.display = 'none';
+            document.getElementById('teamListSection').style.display = '';
+            document.getElementById('buzzSection').style.display = '';
+            document.getElementById('buzzHistorySection').style.display = '';
+            lastRenderedFjPhase = null;
+        }
+
+        function renderFinalJeopardyView(gameState) {
+            document.getElementById('finalJeopardySection').style.display = 'block';
+            document.getElementById('teamListSection').style.display = 'none';
+            document.getElementById('buzzSection').style.display = 'none';
+            document.getElementById('buzzHistorySection').style.display = 'none';
+
+            const fj = gameState.finalJeopardy;
+            const statusEl = document.getElementById('gameStatus');
+            const bodyEl = document.getElementById('finalJeopardyBody');
+            const team = currentPlayer.team;
+
+            if (fj.phase !== lastRenderedFjPhase) {
+                lastRenderedFjPhase = fj.phase;
+                if (fj.phase === 'wagering') {
+                    const maxWager = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
+                    bodyEl.innerHTML = `
+                        <div class="fj-current">
+                            <div class="fj-current-label">Current Wager</div>
+                            <div class="fj-current-value" id="fjCurrentWager"></div>
+                        </div>
+                        <input type="number" class="fj-input" id="fjWagerInput" placeholder="Enter wager" min="0" max="${maxWager}">
+                        <div class="fj-error" id="fjWagerError" style="display: none;"></div>
+                        <button class="fj-submit-btn" onclick="submitFinalWager()">Submit Wager</button>
+                    `;
+                } else if (fj.phase === 'answering') {
+                    bodyEl.innerHTML = `
+                        <div class="fj-current">
+                            <div class="fj-current-label">Your Wager</div>
+                            <div class="fj-current-value" id="fjLockedWager"></div>
+                        </div>
+                        <div class="fj-current">
+                            <div class="fj-current-label">Current Answer</div>
+                            <div class="fj-current-value" id="fjCurrentAnswer"></div>
+                        </div>
+                        <input type="text" class="fj-input" id="fjAnswerInput" placeholder="Type your answer" maxlength="200">
+                        <div class="fj-error" id="fjAnswerError" style="display: none;"></div>
+                        <button class="fj-submit-btn" onclick="submitFinalAnswer()">Submit Answer</button>
+                    `;
+                } else {
+                    // 'resolving' or 'complete'
+                    bodyEl.innerHTML = `
+                        <div class="fj-current">
+                            <div class="fj-current-label">Your Wager</div>
+                            <div class="fj-current-value" id="fjFinalWager"></div>
+                        </div>
+                        <div class="fj-current">
+                            <div class="fj-current-label">Your Answer</div>
+                            <div class="fj-current-value" id="fjFinalAnswer"></div>
+                        </div>
+                        <div class="fj-waiting" id="fjResultText"></div>
+                    `;
+                }
+            }
+
+            if (fj.phase === 'wagering') {
+                statusEl.textContent = 'Final Jeopardy: submit your wager!';
+                statusEl.className = 'status enabled';
+
+                const wager = fj.wagers[team];
+                const wagerEl = document.getElementById('fjCurrentWager');
+                if (wager === null || wager === undefined) {
+                    wagerEl.textContent = 'No wager submitted yet';
+                    wagerEl.classList.add('pending');
+                } else {
+                    wagerEl.textContent = `$${wager.toLocaleString()}`;
+                    wagerEl.classList.remove('pending');
+                }
+                const maxWager = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
+                const input = document.getElementById('fjWagerInput');
+                if (input) input.max = maxWager;
+            } else if (fj.phase === 'answering') {
+                statusEl.textContent = 'Final Jeopardy: submit your answer!';
+                statusEl.className = 'status enabled';
+
+                document.getElementById('fjLockedWager').textContent = `$${(fj.wagers[team] || 0).toLocaleString()}`;
+                const answer = fj.answers[team];
+                const ansEl = document.getElementById('fjCurrentAnswer');
+                if (answer) {
+                    ansEl.textContent = answer;
+                    ansEl.classList.remove('pending');
+                } else {
+                    ansEl.textContent = 'No answer submitted yet';
+                    ansEl.classList.add('pending');
+                }
+            } else {
+                statusEl.textContent = 'Final Jeopardy: waiting for host...';
+                statusEl.className = 'status waiting';
+
+                document.getElementById('fjFinalWager').textContent = `$${(fj.wagers[team] || 0).toLocaleString()}`;
+                document.getElementById('fjFinalAnswer').textContent = fj.answers[team] || 'No answer submitted';
+                const resultEl = document.getElementById('fjResultText');
+                if (fj.resolved[team]) {
+                    const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
+                    resultEl.textContent = `✅ Scored! Your team's score: $${score.toLocaleString()}`;
+                } else {
+                    resultEl.textContent = 'Waiting for host to score your answer...';
+                }
+            }
+        }
+
+        function showFinalJeopardyError(message) {
+            const errorEl = document.getElementById('fjWagerError') || document.getElementById('fjAnswerError');
+            if (errorEl) {
+                errorEl.textContent = message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        function submitFinalWager() {
+            const input = document.getElementById('fjWagerInput');
+            const errorEl = document.getElementById('fjWagerError');
+            const amount = parseInt(input.value, 10);
+            errorEl.style.display = 'none';
+
+            if (!Number.isInteger(amount) || amount < 0) {
+                errorEl.textContent = 'Enter a whole number of $0 or more.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (!window.socket || !window.socket.connected) {
+                errorEl.textContent = 'Not connected to server.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            window.socket.emit('submitFinalJeopardyWager', { team: currentPlayer.team, amount });
+        }
+
+        function submitFinalAnswer() {
+            const input = document.getElementById('fjAnswerInput');
+            const errorEl = document.getElementById('fjAnswerError');
+            const answer = input.value.trim();
+            errorEl.style.display = 'none';
+
+            if (!answer) {
+                errorEl.textContent = 'Please enter an answer.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (!window.socket || !window.socket.connected) {
+                errorEl.textContent = 'Not connected to server.';
+                errorEl.style.display = 'block';
+                return;
+            }
+            window.socket.emit('submitFinalJeopardyAnswer', { team: currentPlayer.team, answer });
         }
 
         // Update game status

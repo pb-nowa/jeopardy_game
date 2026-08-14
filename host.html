@@ -528,6 +528,58 @@
 			font-size: 0.9em;
 			margin-bottom: 10px;
 		}
+
+		.fj-team-row {
+			display: flex;
+			align-items: center;
+			gap: 12px;
+			background: rgba(255, 255, 255, 0.08);
+			border-radius: 10px;
+			padding: 12px 15px;
+			margin-bottom: 10px;
+		}
+
+		.fj-team-badge {
+			padding: 6px 12px;
+			border-radius: 8px;
+			font-weight: bold;
+			color: #222;
+			white-space: nowrap;
+		}
+
+		.fj-team-info {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 3px;
+		}
+
+		.fj-team-answer {
+			word-break: break-word;
+		}
+
+		.fj-pending {
+			opacity: 0.6;
+			font-style: italic;
+		}
+
+		.fj-result {
+			font-weight: bold;
+			white-space: nowrap;
+		}
+
+		.fj-result.correct { color: #00ff00; }
+		.fj-result.wrong { color: #ff6666; }
+
+		.fj-actions {
+			display: flex;
+			gap: 8px;
+		}
+
+		.fj-actions .control-btn {
+			padding: 8px 14px;
+			font-size: 0.9em;
+		}
     </style>
 </head>
 <body>
@@ -576,6 +628,11 @@
                 <button class="control-btn secondary" onclick="clearJeopardyDisplay()">Clear Question</button>
             </div>
         </div>
+    </div>
+
+    <div class="jeopardy-display" id="finalJeopardyDisplay" style="display: none;">
+        <h3>🏆 Final Jeopardy</h3>
+        <div class="jeopardy-content" id="finalJeopardyContent"></div>
     </div>
 
     <div class="controls">
@@ -701,6 +758,7 @@
             updateStats(gameState);
             updateTeams(gameState);
             updateBuzzDisplay(gameState);
+            updateFinalJeopardyPanel(gameState);
         }
 
         // Update control buttons
@@ -1160,6 +1218,153 @@
 				window.socket.emit('markDailyDoubleWrong');
 			}
 		}
+
+        // Final Jeopardy panel. Unlike the Daily Double form above (which tracks its
+        // own local UI state between events), this renders declaratively straight off
+        // gameState.finalJeopardy on every sync — the host never types anything here,
+        // only reads live wagers/answers and clicks Lock/Correct/Wrong/Reset, so a
+        // full re-render each time is simplest and stays correct across reconnects.
+        function updateFinalJeopardyPanel(gameState) {
+            const displayEl = document.getElementById('finalJeopardyDisplay');
+            const contentEl = document.getElementById('finalJeopardyContent');
+            const fj = gameState && gameState.finalJeopardy;
+
+            if (!fj || fj.phase === 'inactive') {
+                displayEl.style.display = 'none';
+                contentEl.innerHTML = '';
+                return;
+            }
+
+            displayEl.style.display = 'block';
+
+            const teams = [1, 2, 3, 4];
+            let rowsHtml = '';
+
+            if (fj.phase === 'wagering') {
+                rowsHtml = teams.map(team => {
+                    const wager = fj.wagers[team];
+                    const wagerText = wager === null || wager === undefined
+                        ? '<span class="fj-pending">no wager yet</span>'
+                        : `Wager: $${wager.toLocaleString()}`;
+                    return `
+                        <div class="fj-team-row">
+                            <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
+                            <div class="fj-team-info">${wagerText}</div>
+                        </div>
+                    `;
+                }).join('');
+                rowsHtml += `
+                    <div class="jeopardy-actions">
+                        <button class="control-btn enable" onclick="lockFinalJeopardyWagers()">🔒 Lock Wagers</button>
+                    </div>
+                `;
+            } else if (fj.phase === 'answering') {
+                rowsHtml = teams.map(team => {
+                    const wager = fj.wagers[team] || 0;
+                    const answer = fj.answers[team];
+                    const answerText = answer
+                        ? `<span class="fj-team-answer">Answer: ${escapeHtmlText(answer)}</span>`
+                        : '<span class="fj-pending">no answer yet</span>';
+                    return `
+                        <div class="fj-team-row">
+                            <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
+                            <div class="fj-team-info">
+                                <div>Wager: $${wager.toLocaleString()}</div>
+                                <div>${answerText}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                rowsHtml += `
+                    <div class="jeopardy-actions">
+                        <button class="control-btn enable" onclick="lockFinalJeopardyAnswers()">🔒 Lock Answers</button>
+                    </div>
+                `;
+            } else {
+                // 'resolving' or 'complete'
+                rowsHtml = teams.map(team => {
+                    const wager = fj.wagers[team] || 0;
+                    const answer = fj.answers[team];
+                    const answerText = answer ? escapeHtmlText(answer) : '<span class="fj-pending">no answer</span>';
+                    const resolved = fj.resolved[team];
+                    let actionHtml;
+                    if (resolved) {
+                        // Result correctness itself isn't tracked client-side once resolved,
+                        // but a resolved team always has a final score consistent with the
+                        // wager sign already applied server-side, so just show it's scored.
+                        actionHtml = `<span class="fj-result">✅ Scored</span>`;
+                    } else {
+                        actionHtml = `
+                            <div class="fj-actions">
+                                <button class="control-btn enable" onclick="markFinalJeopardyCorrect(${team})">✅ Correct</button>
+                                <button class="control-btn disable" onclick="markFinalJeopardyWrong(${team})">❌ Wrong</button>
+                            </div>
+                        `;
+                    }
+                    return `
+                        <div class="fj-team-row">
+                            <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
+                            <div class="fj-team-info">
+                                <div>Wager: $${wager.toLocaleString()}</div>
+                                <div class="fj-team-answer">${answerText}</div>
+                            </div>
+                            ${actionHtml}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            rowsHtml += `
+                <div class="jeopardy-actions">
+                    <button class="control-btn secondary" onclick="resetFinalJeopardyPrompt()">🔄 Reset Final Jeopardy</button>
+                </div>
+            `;
+
+            contentEl.innerHTML = rowsHtml;
+        }
+
+        // Final Jeopardy answers are player-typed free text, so (unlike the mostly
+        // server-generated content elsewhere on this page) they need real escaping
+        // before landing in innerHTML.
+        function escapeHtmlText(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function lockFinalJeopardyWagers() {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('lockFinalJeopardyWagers');
+            }
+        }
+
+        function lockFinalJeopardyAnswers() {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('lockFinalJeopardyAnswers');
+            }
+        }
+
+        function markFinalJeopardyCorrect(team) {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('markFinalJeopardyTeamCorrect', { team });
+            }
+        }
+
+        function markFinalJeopardyWrong(team) {
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('markFinalJeopardyTeamWrong', { team });
+            }
+        }
+
+        function resetFinalJeopardyPrompt() {
+            if (!confirm('Reset Final Jeopardy? This clears all wagers, answers, and results for this round.')) {
+                return;
+            }
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('resetFinalJeopardy');
+            }
+        }
 
         function clearJeopardyDisplay() {
             const displayEl = document.getElementById('jeopardyDisplay');
