@@ -560,21 +560,79 @@
             margin-top: 4px;
         }
 
+        /* Takes over the whole viewport for drawing — a drawn answer needs real
+           space to be legible, which the normal scrolling page can't spare. */
+        .fj-answer-fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            padding-top: calc(12px + env(safe-area-inset-top));
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            box-sizing: border-box;
+            gap: 8px;
+            /* A finger drag anywhere in here is drawing input, never text selection. */
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .fj-answer-fs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex: 0 0 auto;
+            color: var(--text-primary);
+            font-size: 0.9em;
+        }
+
+        .fj-answer-fs-current {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fj-answer-thumb-small {
+            max-width: 70px;
+            max-height: 36px;
+            border-radius: 4px;
+            display: block;
+        }
+
+        .fj-canvas-rotate-wrap {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
         .fj-answer-canvas {
-            width: 100%;
-            height: 170px;
             display: block;
             border-radius: 10px;
             border: 2px solid var(--accent-border);
             background: #0d1b3e;
             touch-action: none; /* keeps a drag on the canvas from also scrolling the page */
-            margin-bottom: 10px;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            /* Rotated so writing runs along the phone's long (vertical) axis —
+               that's the dimension with real room, versus the cramped width a
+               portrait screen gives an upright canvas. See resizeFinalAnswerCanvas
+               for how its size is computed and getPos for the matching coordinate
+               math that undoes this rotation on input. */
+            transform: rotate(90deg);
         }
 
         .fj-canvas-actions {
             display: flex;
             gap: 10px;
-            margin-bottom: 10px;
+            flex: 0 0 auto;
         }
 
         .fj-canvas-btn {
@@ -829,6 +887,7 @@
             document.getElementById('buzzSection').style.display = '';
             document.getElementById('buzzHistorySection').style.display = '';
             lastRenderedFjPhase = null;
+            unlockBodyScrollForDrawing();
         }
 
         function renderFinalJeopardyView(gameState) {
@@ -844,6 +903,9 @@
 
             if (fj.phase !== lastRenderedFjPhase) {
                 lastRenderedFjPhase = fj.phase;
+                if (fj.phase !== 'answering') {
+                    unlockBodyScrollForDrawing();
+                }
                 if (fj.phase === 'wagering') {
                     const maxWager = Math.max(0, (gameState.teamScores && gameState.teamScores[team]) || 0);
                     bodyEl.innerHTML = `
@@ -857,24 +919,31 @@
                         <button class="fj-submit-btn" onclick="submitFinalWager()">Submit Wager</button>
                     `;
                 } else if (fj.phase === 'answering') {
+                    // A drawn answer needs real space to be legible, so this phase
+                    // takes over the whole viewport rather than living inside the
+                    // normal scrolling page — see initFinalAnswerCanvas for how the
+                    // canvas itself is then rotated within that space.
                     bodyEl.innerHTML = `
-                        <div class="fj-current">
-                            <div class="fj-current-label">Your Wager</div>
-                            <div class="fj-current-value" id="fjLockedWager"></div>
+                        <div class="fj-answer-fullscreen" id="fjAnswerFullscreen">
+                            <div class="fj-answer-fs-header">
+                                <div>Wager: <strong id="fjLockedWager"></strong></div>
+                                <div class="fj-answer-fs-current">
+                                    <span class="fj-pending" id="fjCurrentAnswerPending">No answer submitted yet</span>
+                                    <img class="fj-answer-thumb-small" id="fjCurrentAnswerImg" style="display: none;" alt="Your team's current drawn answer">
+                                </div>
+                            </div>
+                            <div class="fj-canvas-rotate-wrap" id="fjCanvasRotateWrap">
+                                <canvas id="fjAnswerCanvas" class="fj-answer-canvas"></canvas>
+                            </div>
+                            <div class="fj-canvas-actions">
+                                <button type="button" class="fj-canvas-btn" onclick="undoFinalAnswerStroke()">Undo</button>
+                                <button type="button" class="fj-canvas-btn" onclick="clearFinalAnswerCanvas()">Clear</button>
+                            </div>
+                            <div class="fj-error" id="fjAnswerError" style="display: none;"></div>
+                            <button class="fj-submit-btn" id="fjAnswerSubmitBtn" onclick="submitFinalAnswer()" disabled>Submit Answer</button>
                         </div>
-                        <div class="fj-current">
-                            <div class="fj-current-label">Your Team's Current Answer</div>
-                            <div class="fj-current-value pending" id="fjCurrentAnswerPending">No answer submitted yet</div>
-                            <img class="fj-answer-thumb" id="fjCurrentAnswerImg" style="display: none;" alt="Your team's current drawn answer">
-                        </div>
-                        <canvas id="fjAnswerCanvas" class="fj-answer-canvas"></canvas>
-                        <div class="fj-canvas-actions">
-                            <button type="button" class="fj-canvas-btn" onclick="undoFinalAnswerStroke()">Undo</button>
-                            <button type="button" class="fj-canvas-btn" onclick="clearFinalAnswerCanvas()">Clear</button>
-                        </div>
-                        <div class="fj-error" id="fjAnswerError" style="display: none;"></div>
-                        <button class="fj-submit-btn" id="fjAnswerSubmitBtn" onclick="submitFinalAnswer()" disabled>Submit Answer</button>
                     `;
+                    lockBodyScrollForDrawing();
                     initFinalAnswerCanvas();
                 } else {
                     // 'resolving' or 'complete'
@@ -987,8 +1056,26 @@
         const FJ_CANVAS_STROKE = '#ffffff';
         const FJ_CANVAS_LINE_WIDTH = 2.5;
 
-        let fjStrokes = [];        // array of strokes; each stroke is an array of {x,y} points
+        let fjStrokes = [];        // array of strokes; each stroke is an array of {x,y} points, in the CANVAS'S OWN (unrotated) coordinate space
         let fjCanvasResizeHandler = null;
+        let fjBodyScrollLocked = false;
+
+        // The canvas is visually rotated 90deg (see the .fj-answer-canvas CSS) so the
+        // user draws using the phone's long axis. Pointer events always report
+        // position in normal on-screen/viewport coordinates regardless of any CSS
+        // transform on their target, so this undoes that rotation to get back to the
+        // canvas's own local coordinate space before recording a point.
+        function lockBodyScrollForDrawing() {
+            if (fjBodyScrollLocked) return;
+            fjBodyScrollLocked = true;
+            document.body.style.overflow = 'hidden';
+        }
+
+        function unlockBodyScrollForDrawing() {
+            if (!fjBodyScrollLocked) return;
+            fjBodyScrollLocked = false;
+            document.body.style.overflow = '';
+        }
 
         function initFinalAnswerCanvas() {
             const canvas = document.getElementById('fjAnswerCanvas');
@@ -999,8 +1086,12 @@
             let drawing = false;
 
             function getPos(e) {
+                // rect is the VISUAL (post-rotation) bounding box: its width is the
+                // canvas's local *height*, and vice versa — see resizeFinalAnswerCanvas.
                 const rect = canvas.getBoundingClientRect();
-                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+                const relX = e.clientX - rect.left;
+                const relY = e.clientY - rect.top;
+                return { x: relY, y: rect.width - relX };
             }
 
             function pointerDown(e) {
@@ -1047,13 +1138,25 @@
 
         function resizeFinalAnswerCanvas() {
             const canvas = document.getElementById('fjAnswerCanvas');
-            if (!canvas) return;
+            const wrap = document.getElementById('fjCanvasRotateWrap');
+            if (!canvas || !wrap) return;
+
+            const wrapW = wrap.clientWidth;
+            const wrapH = wrap.clientHeight;
+            if (!wrapW || !wrapH) return;
+
+            // The canvas's own (unrotated) box is sized landscape — width from the
+            // wrap's height, height from the wrap's width — so that after the CSS
+            // rotate(90deg), it visually fills the (portrait) wrap exactly, and the
+            // exported image itself comes out landscape without any post-processing.
+            const localWidth = wrapH;
+            const localHeight = wrapW;
+            canvas.style.width = localWidth + 'px';
+            canvas.style.height = localHeight + 'px';
+
             const dpr = window.devicePixelRatio || 1;
-            const cssWidth = canvas.clientWidth;
-            const cssHeight = canvas.clientHeight;
-            if (!cssWidth || !cssHeight) return;
-            canvas.width = Math.round(cssWidth * dpr);
-            canvas.height = Math.round(cssHeight * dpr);
+            canvas.width = Math.round(localWidth * dpr);
+            canvas.height = Math.round(localHeight * dpr);
             redrawFinalAnswerCanvas();
         }
 

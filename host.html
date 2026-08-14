@@ -548,11 +548,15 @@
 		.fj-team-row {
 			display: flex;
 			align-items: center;
+			flex-wrap: wrap;
 			gap: 12px;
 			background: rgba(255, 255, 255, 0.08);
 			border-radius: 10px;
 			padding: 12px 15px;
 			margin-bottom: 10px;
+			max-width: 100%;
+			box-sizing: border-box;
+			overflow-wrap: break-word;
 		}
 
 		.fj-team-badge {
@@ -561,10 +565,12 @@
 			font-weight: bold;
 			color: #222;
 			white-space: nowrap;
+			flex: 0 0 auto;
 		}
 
 		.fj-team-info {
-			flex: 1;
+			flex: 1 1 180px;
+			min-width: 0; /* lets this shrink below the answer image's natural width instead of forcing the row wider than the panel */
 			display: flex;
 			flex-direction: column;
 			gap: 3px;
@@ -576,7 +582,7 @@
 
 		.fj-answer-thumb {
 			display: block;
-			max-width: 220px;
+			max-width: min(220px, 100%);
 			max-height: 110px;
 			border-radius: 6px;
 			margin-top: 4px;
@@ -603,7 +609,9 @@
 
 		.fj-actions {
 			display: flex;
+			flex-wrap: wrap;
 			gap: 8px;
+			flex: 0 0 auto;
 		}
 
 		.fj-actions .control-btn {
