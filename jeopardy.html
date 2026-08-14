@@ -832,7 +832,8 @@
                     const q = document.createElement("div");
                     q.className = "question";
                     q.innerText = `$${(i + 1) * multiplier}`;
-                    
+                    q.dataset.category = category;
+
                     const questionData = roundData.questions[category] && roundData.questions[category][i];
                     if (questionData) {
                         q.dataset.hint = questionData.hint;
@@ -907,6 +908,7 @@
             // Send question data to host UI via WebSocket
             if (jeopardySocket && jeopardySocket.connected) {
                 jeopardySocket.emit('jeopardyQuestion', {
+                    category: currentContent.category,
                     question: currentContent.hint,
                     answer: currentContent.answer,
                     value: currentQuestionValue,
