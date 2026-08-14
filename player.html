@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>Jeopardy Buzzer - Player</title>
     <style>
         /* Theme System - CSS Custom Properties */
@@ -235,6 +235,16 @@
             flex-direction: column;
             padding: 10px;
             overflow-x: hidden;
+            /* This is a touch-driven control panel, not a page with text worth
+               selecting — a stray drag (buzzing, drawing, tapping buttons) should
+               never trigger the browser's native text-selection UI. */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .header {
@@ -596,11 +606,37 @@
             gap: 8px;
         }
 
+        .fj-answer-fs-hint {
+            flex: 0 0 auto;
+            text-align: center;
+            font-size: 0.8em;
+            color: var(--text-muted);
+        }
+
         .fj-answer-thumb-small {
             max-width: 70px;
             max-height: 36px;
             border-radius: 4px;
             display: block;
+            cursor: pointer;
+        }
+
+        .fj-lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .fj-lightbox img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 10px;
         }
 
         .fj-canvas-rotate-wrap {
@@ -614,19 +650,15 @@
 
         .fj-answer-canvas {
             display: block;
+            width: 100%;
+            height: 100%;
             border-radius: 10px;
             border: 2px solid var(--accent-border);
             background: #0d1b3e;
-            touch-action: none; /* keeps a drag on the canvas from also scrolling the page */
+            touch-action: none; /* keeps a drag on the canvas from also scrolling the page, and disables double-tap-to-zoom on it */
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
-            /* Rotated so writing runs along the phone's long (vertical) axis —
-               that's the dimension with real room, versus the cramped width a
-               portrait screen gives an upright canvas. See resizeFinalAnswerCanvas
-               for how its size is computed and getPos for the matching coordinate
-               math that undoes this rotation on input. */
-            transform: rotate(90deg);
         }
 
         .fj-canvas-actions {
@@ -921,17 +953,17 @@
                 } else if (fj.phase === 'answering') {
                     // A drawn answer needs real space to be legible, so this phase
                     // takes over the whole viewport rather than living inside the
-                    // normal scrolling page — see initFinalAnswerCanvas for how the
-                    // canvas itself is then rotated within that space.
+                    // normal scrolling page.
                     bodyEl.innerHTML = `
                         <div class="fj-answer-fullscreen" id="fjAnswerFullscreen">
                             <div class="fj-answer-fs-header">
                                 <div>Wager: <strong id="fjLockedWager"></strong></div>
                                 <div class="fj-answer-fs-current">
                                     <span class="fj-pending" id="fjCurrentAnswerPending">No answer submitted yet</span>
-                                    <img class="fj-answer-thumb-small" id="fjCurrentAnswerImg" style="display: none;" alt="Your team's current drawn answer">
+                                    <img class="fj-answer-thumb-small" id="fjCurrentAnswerImg" style="display: none;" alt="Your team's current drawn answer" onclick="showFinalAnswerLightbox(this.src)">
                                 </div>
                             </div>
+                            <div class="fj-answer-fs-hint">One teammate draws — everyone else can watch above.</div>
                             <div class="fj-canvas-rotate-wrap" id="fjCanvasRotateWrap">
                                 <canvas id="fjAnswerCanvas" class="fj-answer-canvas"></canvas>
                             </div>
@@ -1086,12 +1118,8 @@
             let drawing = false;
 
             function getPos(e) {
-                // rect is the VISUAL (post-rotation) bounding box: its width is the
-                // canvas's local *height*, and vice versa — see resizeFinalAnswerCanvas.
                 const rect = canvas.getBoundingClientRect();
-                const relX = e.clientX - rect.left;
-                const relY = e.clientY - rect.top;
-                return { x: relY, y: rect.width - relX };
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
             }
 
             function pointerDown(e) {
@@ -1145,18 +1173,9 @@
             const wrapH = wrap.clientHeight;
             if (!wrapW || !wrapH) return;
 
-            // The canvas's own (unrotated) box is sized landscape — width from the
-            // wrap's height, height from the wrap's width — so that after the CSS
-            // rotate(90deg), it visually fills the (portrait) wrap exactly, and the
-            // exported image itself comes out landscape without any post-processing.
-            const localWidth = wrapH;
-            const localHeight = wrapW;
-            canvas.style.width = localWidth + 'px';
-            canvas.style.height = localHeight + 'px';
-
             const dpr = window.devicePixelRatio || 1;
-            canvas.width = Math.round(localWidth * dpr);
-            canvas.height = Math.round(localHeight * dpr);
+            canvas.width = Math.round(wrapW * dpr);
+            canvas.height = Math.round(wrapH * dpr);
             redrawFinalAnswerCanvas();
         }
 
@@ -1212,6 +1231,17 @@
             if (btn) btn.disabled = fjStrokes.length === 0;
         }
 
+        // Lets a player tap the small "current answer" thumbnail to check what a
+        // teammate actually drew, full-size, instead of squinting at a 70px preview.
+        function showFinalAnswerLightbox(url) {
+            if (!url) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'fj-lightbox';
+            overlay.innerHTML = `<img src="${url}" alt="Your team's current answer, enlarged">`;
+            overlay.addEventListener('click', () => overlay.remove());
+            document.body.appendChild(overlay);
+        }
+
         async function submitFinalAnswer() {
             const canvas = document.getElementById('fjAnswerCanvas');
             const errorEl = document.getElementById('fjAnswerError');
@@ -1243,6 +1273,10 @@
                     throw new Error(data.error || 'Upload failed.');
                 }
                 window.socket.emit('submitFinalJeopardyAnswer', { team: currentPlayer.team, answer: data.url });
+                // Clears the drawing surface for whoever writes the next attempt —
+                // the just-submitted drawing lives on as the team's answer/thumbnail,
+                // not as leftover strokes still sitting on the canvas.
+                clearFinalAnswerCanvas();
             } catch (err) {
                 errorEl.textContent = err.message || 'Failed to submit answer.';
                 errorEl.style.display = 'block';
