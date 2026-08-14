@@ -90,18 +90,33 @@
 
         .tabs {
             display: flex;
-            gap: 8px;
+            gap: 4px;
             margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-subtle);
         }
 
         .tab-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            border-radius: 6px 6px 0 0;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            padding: 12px 20px;
+            box-shadow: none;
+        }
+
+        .tab-btn:hover:not(:disabled):not(.active) {
             background: var(--bg-tertiary);
             color: var(--text-primary);
+            transform: none;
+            box-shadow: none;
         }
 
         .tab-btn.active {
-            background: var(--btn-primary-bg);
-            color: var(--btn-primary-text);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border-bottom-color: var(--text-secondary);
         }
 
         .tab-panel {
@@ -319,6 +334,10 @@
 
         <div class="panel">
             <h2>Create a New Game</h2>
+
+            <label for="gameName">Game Name</label>
+            <input type="text" id="gameName" placeholder="e.g. Sarah's Birthday Jeopardy">
+
             <div class="tabs">
                 <button class="tab-btn active" type="button" data-tab="csv">Upload CSV</button>
                 <button class="tab-btn" type="button" data-tab="blank">Create From Scratch</button>
@@ -326,9 +345,6 @@
 
             <div class="tab-panel active" id="tabCsv">
                 <form id="uploadForm">
-                    <label for="gameName">Game Name</label>
-                    <input type="text" id="gameName" placeholder="e.g. Sarah's Birthday Jeopardy" required>
-
                     <label for="csvFile">CSV File</label>
                     <input type="file" id="csvFile" accept=".csv" required>
                     <div class="help-text">
@@ -352,8 +368,6 @@
 
             <div class="tab-panel" id="tabBlank">
                 <form id="blankForm">
-                    <label for="blankGameName">Game Name</label>
-                    <input type="text" id="blankGameName" placeholder="e.g. Sarah's Birthday Jeopardy" required>
                     <div class="help-text">
                         Starts with the same 3-round, 5-category, 5-question layout as an uploaded game, filled with
                         placeholder text — you'll rename categories and fill in each question in the editor that opens next.
@@ -562,6 +576,7 @@
                 } else {
                     showMessages([`"${data.name}" uploaded successfully.`], 'success');
                     document.getElementById('uploadForm').reset();
+                    document.getElementById('gameName').value = '';
                     await loadGames();
                 }
             } catch (err) {
@@ -576,7 +591,7 @@
             e.preventDefault();
             showMessages([], 'error', 'blankMessages');
 
-            const name = document.getElementById('blankGameName').value.trim();
+            const name = document.getElementById('gameName').value.trim();
             if (!name) {
                 showMessages(['A game name is required.'], 'error', 'blankMessages');
                 return;
