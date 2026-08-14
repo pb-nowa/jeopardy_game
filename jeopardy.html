@@ -522,7 +522,7 @@
 
 <body>
     <h1>
-        Welcome back to the USA Sarah, Jeopardy!
+        <span id="gameTitleText">Jeopardy!</span>
         <div class="hamburger-menu">
             <button class="hamburger-btn" onclick="toggleHamburger()">
                 <span></span>
@@ -652,6 +652,26 @@
             return await fallbackRes.json();
         }
 
+        // Shows the active game's saved display name in the header, or a generic
+        // default when no game is active (or its name can't be found — the board still
+        // renders fine from hints.json fallback in that case, just with a plain title).
+        async function updateGameTitle(activeGameId) {
+            const titleEl = document.getElementById('gameTitleText');
+            if (!activeGameId) {
+                titleEl.textContent = 'Jeopardy!';
+                return;
+            }
+            try {
+                const res = await fetch('/api/games', { cache: 'no-store' });
+                const games = await res.json();
+                const entry = Array.isArray(games) ? games.find(g => g.id === activeGameId) : null;
+                titleEl.textContent = entry ? `${entry.name} Jeopardy!` : 'Jeopardy!';
+            } catch (err) {
+                console.warn('Failed to load game name for title:', err);
+                titleEl.textContent = 'Jeopardy!';
+            }
+        }
+
         async function initGameFromHints() {
             try {
                 const stateRes = await fetch('/api/gamestate', { cache: 'no-store' });
@@ -659,6 +679,7 @@
                 currentActiveGameId = (state && state.activeGameId) || null;
                 currentActiveGameContentVersion = (state && state.activeGameContentVersion) || 0;
                 gameData = await fetchGameData(currentActiveGameId);
+                await updateGameTitle(currentActiveGameId);
             } catch (err) {
                 console.error('Failed to load game data:', err);
                 gameData = { round1: { questions: {} }, round2: { questions: {} }, round3: { questions: {} }, finalJeopardy: { category: '', hint: '', answer: '' } };
@@ -672,7 +693,7 @@
 
             // Initialize score display
             updateScoreDisplay();
-            
+
             // Load JSON editor with current data
             loadJSON();
         }
@@ -687,6 +708,7 @@
                 currentActiveGameId = newActiveGameId;
                 currentActiveGameContentVersion = newContentVersion;
                 gameData = await fetchGameData(newActiveGameId);
+                await updateGameTitle(newActiveGameId);
 
                 createBoard(1, 100);
                 createBoard(2, 200);
