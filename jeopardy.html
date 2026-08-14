@@ -985,11 +985,15 @@
         // Dramatic per-team reveal, driven by the host clicking a team on their
         // panel — mirrors the real show, where each team's response is shown before
         // the correct answer itself. Triggered by finalJeopardyTeamAnswerRevealed.
-        function showFinalTeamAnswer(team, answerText) {
+        // answerUrl points at the team's drawn-on-phone answer image, not typed text.
+        function showFinalTeamAnswer(team, answerUrl) {
             const finalText = document.getElementById("finalText");
             const teamColor = getTeamColor(team);
             const teamName = getTeamName(team);
-            finalText.innerHTML = `<span style="color:${teamColor};">${teamName}'s Answer:</span><br><br>` + (answerText || '<em>(no answer submitted)</em>');
+            const bodyHtml = answerUrl
+                ? `<br><img src="${escapeHtmlAttr(answerUrl)}" style="max-width:100%; max-height:40vh; display:block; margin:15px auto 0 auto; border-radius:10px;">`
+                : '<br><br><em>(no answer submitted)</em>';
+            finalText.innerHTML = `<span style="color:${teamColor};">${teamName}'s Answer:</span>` + bodyHtml;
             finalJeopardyState = "team-answer";
         }
 

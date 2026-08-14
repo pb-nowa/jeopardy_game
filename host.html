@@ -574,6 +574,15 @@
 			word-break: break-word;
 		}
 
+		.fj-answer-thumb {
+			display: block;
+			max-width: 220px;
+			max-height: 110px;
+			border-radius: 6px;
+			margin-top: 4px;
+			background: #0d1b3e;
+		}
+
 		.fj-pending {
 			opacity: 0.6;
 			font-style: italic;
@@ -1309,9 +1318,7 @@
                     const wager = fj.wagers[team] || 0;
                     const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
                     const answer = fj.answers[team];
-                    const answerText = answer
-                        ? `<span class="fj-team-answer">Answer: ${escapeHtmlText(answer)}</span>`
-                        : '<span class="fj-pending">no answer yet</span>';
+                    const answerText = renderFinalAnswerThumb(answer, 'no answer yet');
                     return `
                         <div class="fj-team-row">
                             <div class="fj-team-badge" style="background:${getTeamColor(team)}">${getTeamName(team)}</div>
@@ -1338,7 +1345,7 @@
                     const wager = fj.wagers[team] || 0;
                     const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
                     const answer = fj.answers[team];
-                    const answerText = answer ? escapeHtmlText(answer) : '<span class="fj-pending">no answer</span>';
+                    const answerText = renderFinalAnswerThumb(answer, 'no answer');
                     const resolved = fj.resolved[team];
                     const revealed = fj.revealed[team];
                     const wagerRevealed = fj.wagerRevealed[team];
@@ -1422,14 +1429,22 @@
             }
         }
 
-        // Final Jeopardy answers are player-typed free text, so (unlike the mostly
-        // server-generated content elsewhere on this page) they need real escaping
-        // before landing in innerHTML.
+        // Server-generated URLs and player-drawn free text both land in innerHTML
+        // elsewhere on this page, so escaping stays generic rather than assuming one
+        // or the other.
         function escapeHtmlText(str) {
             return String(str)
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;');
+        }
+
+        // Final Jeopardy answers are drawn on the player's phone, not typed — this
+        // renders the uploaded drawing as a small thumbnail instead of text.
+        function renderFinalAnswerThumb(answerUrl, pendingText) {
+            return answerUrl
+                ? `<img src="${escapeHtmlText(answerUrl)}" class="fj-answer-thumb" alt="Team's drawn answer">`
+                : `<span class="fj-pending">${pendingText}</span>`;
         }
 
         function lockFinalJeopardyWagers() {

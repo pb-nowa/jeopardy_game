@@ -552,6 +552,42 @@
             margin-bottom: 8px;
         }
 
+        .fj-answer-thumb {
+            display: block;
+            max-width: 100%;
+            max-height: 120px;
+            border-radius: 8px;
+            margin-top: 4px;
+        }
+
+        .fj-answer-canvas {
+            width: 100%;
+            height: 170px;
+            display: block;
+            border-radius: 10px;
+            border: 2px solid var(--accent-border);
+            background: #0d1b3e;
+            touch-action: none; /* keeps a drag on the canvas from also scrolling the page */
+            margin-bottom: 10px;
+        }
+
+        .fj-canvas-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .fj-canvas-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: 2px solid var(--accent-border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+
         .fj-submit-btn {
             width: 100%;
             padding: 14px;
@@ -827,13 +863,19 @@
                             <div class="fj-current-value" id="fjLockedWager"></div>
                         </div>
                         <div class="fj-current">
-                            <div class="fj-current-label">Current Answer</div>
-                            <div class="fj-current-value" id="fjCurrentAnswer"></div>
+                            <div class="fj-current-label">Your Team's Current Answer</div>
+                            <div class="fj-current-value pending" id="fjCurrentAnswerPending">No answer submitted yet</div>
+                            <img class="fj-answer-thumb" id="fjCurrentAnswerImg" style="display: none;" alt="Your team's current drawn answer">
                         </div>
-                        <input type="text" class="fj-input" id="fjAnswerInput" placeholder="Type your answer" maxlength="200">
+                        <canvas id="fjAnswerCanvas" class="fj-answer-canvas"></canvas>
+                        <div class="fj-canvas-actions">
+                            <button type="button" class="fj-canvas-btn" onclick="undoFinalAnswerStroke()">Undo</button>
+                            <button type="button" class="fj-canvas-btn" onclick="clearFinalAnswerCanvas()">Clear</button>
+                        </div>
                         <div class="fj-error" id="fjAnswerError" style="display: none;"></div>
-                        <button class="fj-submit-btn" onclick="submitFinalAnswer()">Submit Answer</button>
+                        <button class="fj-submit-btn" id="fjAnswerSubmitBtn" onclick="submitFinalAnswer()" disabled>Submit Answer</button>
                     `;
+                    initFinalAnswerCanvas();
                 } else {
                     // 'resolving' or 'complete'
                     bodyEl.innerHTML = `
@@ -843,7 +885,8 @@
                         </div>
                         <div class="fj-current">
                             <div class="fj-current-label">Your Answer</div>
-                            <div class="fj-current-value" id="fjFinalAnswer"></div>
+                            <div class="fj-current-value pending" id="fjFinalAnswerPending">No answer submitted</div>
+                            <img class="fj-answer-thumb" id="fjFinalAnswerImg" style="display: none;" alt="Your team's submitted answer">
                         </div>
                         <div class="fj-waiting" id="fjResultText"></div>
                     `;
@@ -874,20 +917,32 @@
 
                 document.getElementById('fjLockedWager').textContent = `$${(fj.wagers[team] || 0).toLocaleString()}`;
                 const answer = fj.answers[team];
-                const ansEl = document.getElementById('fjCurrentAnswer');
+                const pendingEl = document.getElementById('fjCurrentAnswerPending');
+                const imgEl = document.getElementById('fjCurrentAnswerImg');
                 if (answer) {
-                    ansEl.textContent = answer;
-                    ansEl.classList.remove('pending');
+                    imgEl.src = answer;
+                    imgEl.style.display = 'block';
+                    pendingEl.style.display = 'none';
                 } else {
-                    ansEl.textContent = 'No answer submitted yet';
-                    ansEl.classList.add('pending');
+                    imgEl.style.display = 'none';
+                    pendingEl.style.display = 'block';
                 }
             } else {
                 statusEl.textContent = 'Final Jeopardy: waiting for host...';
                 statusEl.className = 'status waiting';
 
                 document.getElementById('fjFinalWager').textContent = `$${(fj.wagers[team] || 0).toLocaleString()}`;
-                document.getElementById('fjFinalAnswer').textContent = fj.answers[team] || 'No answer submitted';
+                const finalAnswer = fj.answers[team];
+                const finalPendingEl = document.getElementById('fjFinalAnswerPending');
+                const finalImgEl = document.getElementById('fjFinalAnswerImg');
+                if (finalAnswer) {
+                    finalImgEl.src = finalAnswer;
+                    finalImgEl.style.display = 'block';
+                    finalPendingEl.style.display = 'none';
+                } else {
+                    finalImgEl.style.display = 'none';
+                    finalPendingEl.style.display = 'block';
+                }
                 const resultEl = document.getElementById('fjResultText');
                 if (fj.resolved[team]) {
                     const score = (gameState.teamScores && gameState.teamScores[team]) || 0;
@@ -925,14 +980,143 @@
             window.socket.emit('submitFinalJeopardyWager', { team: currentPlayer.team, amount });
         }
 
-        function submitFinalAnswer() {
-            const input = document.getElementById('fjAnswerInput');
+        // Final Jeopardy answers are drawn, not typed — the small screen and a
+        // thumb aren't great for handwriting, so the line is kept thin and the
+        // canvas dark-blue-on-white swapped for white-on-dark-blue for contrast.
+        const FJ_CANVAS_BG = '#0d1b3e';
+        const FJ_CANVAS_STROKE = '#ffffff';
+        const FJ_CANVAS_LINE_WIDTH = 2.5;
+
+        let fjStrokes = [];        // array of strokes; each stroke is an array of {x,y} points
+        let fjCanvasResizeHandler = null;
+
+        function initFinalAnswerCanvas() {
+            const canvas = document.getElementById('fjAnswerCanvas');
+            if (!canvas) return;
+
+            fjStrokes = [];
+            let currentStroke = null;
+            let drawing = false;
+
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            }
+
+            function pointerDown(e) {
+                e.preventDefault();
+                drawing = true;
+                currentStroke = [getPos(e)];
+                fjStrokes.push(currentStroke);
+                canvas.setPointerCapture(e.pointerId);
+            }
+
+            function pointerMove(e) {
+                if (!drawing) return;
+                e.preventDefault();
+                currentStroke.push(getPos(e));
+                redrawFinalAnswerCanvas();
+            }
+
+            function pointerUp(e) {
+                if (!drawing) return;
+                drawing = false;
+                currentStroke = null;
+                updateFinalAnswerSubmitState();
+            }
+
+            canvas.addEventListener('pointerdown', pointerDown);
+            canvas.addEventListener('pointermove', pointerMove);
+            canvas.addEventListener('pointerup', pointerUp);
+            canvas.addEventListener('pointercancel', pointerUp);
+            canvas.addEventListener('pointerleave', pointerUp);
+
+            // Re-fit the backing bitmap to the element's laid-out size (and redraw at
+            // the new size) on orientation change. Only one listener at a time — the
+            // previous phase's canvas is long gone from the DOM by the time this runs
+            // again, so its stale handler is dropped rather than left stacking up.
+            if (fjCanvasResizeHandler) {
+                window.removeEventListener('resize', fjCanvasResizeHandler);
+            }
+            fjCanvasResizeHandler = resizeFinalAnswerCanvas;
+            window.addEventListener('resize', fjCanvasResizeHandler);
+
+            resizeFinalAnswerCanvas();
+            updateFinalAnswerSubmitState();
+        }
+
+        function resizeFinalAnswerCanvas() {
+            const canvas = document.getElementById('fjAnswerCanvas');
+            if (!canvas) return;
+            const dpr = window.devicePixelRatio || 1;
+            const cssWidth = canvas.clientWidth;
+            const cssHeight = canvas.clientHeight;
+            if (!cssWidth || !cssHeight) return;
+            canvas.width = Math.round(cssWidth * dpr);
+            canvas.height = Math.round(cssHeight * dpr);
+            redrawFinalAnswerCanvas();
+        }
+
+        // Redraws every stroke from scratch rather than drawing incrementally, so
+        // Undo (drop the last stroke) and Clear (drop them all) just need to trigger
+        // a redraw instead of trying to erase pixels that were already painted.
+        function redrawFinalAnswerCanvas() {
+            const canvas = document.getElementById('fjAnswerCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.fillStyle = FJ_CANVAS_BG;
+            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+            ctx.strokeStyle = FJ_CANVAS_STROKE;
+            ctx.fillStyle = FJ_CANVAS_STROKE;
+            ctx.lineWidth = FJ_CANVAS_LINE_WIDTH;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            fjStrokes.forEach(stroke => {
+                if (stroke.length === 1) {
+                    // A tap with no drag — draw a dot so it isn't silently lost.
+                    ctx.beginPath();
+                    ctx.arc(stroke[0].x, stroke[0].y, FJ_CANVAS_LINE_WIDTH / 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    return;
+                }
+                ctx.beginPath();
+                ctx.moveTo(stroke[0].x, stroke[0].y);
+                for (let i = 1; i < stroke.length; i++) {
+                    ctx.lineTo(stroke[i].x, stroke[i].y);
+                }
+                ctx.stroke();
+            });
+        }
+
+        function undoFinalAnswerStroke() {
+            fjStrokes.pop();
+            redrawFinalAnswerCanvas();
+            updateFinalAnswerSubmitState();
+        }
+
+        function clearFinalAnswerCanvas() {
+            fjStrokes = [];
+            redrawFinalAnswerCanvas();
+            updateFinalAnswerSubmitState();
+        }
+
+        function updateFinalAnswerSubmitState() {
+            const btn = document.getElementById('fjAnswerSubmitBtn');
+            if (btn) btn.disabled = fjStrokes.length === 0;
+        }
+
+        async function submitFinalAnswer() {
+            const canvas = document.getElementById('fjAnswerCanvas');
             const errorEl = document.getElementById('fjAnswerError');
-            const answer = input.value.trim();
+            const submitBtn = document.getElementById('fjAnswerSubmitBtn');
             errorEl.style.display = 'none';
 
-            if (!answer) {
-                errorEl.textContent = 'Please enter an answer.';
+            if (!canvas || fjStrokes.length === 0) {
+                errorEl.textContent = 'Please draw an answer first.';
                 errorEl.style.display = 'block';
                 return;
             }
@@ -941,7 +1125,28 @@
                 errorEl.style.display = 'block';
                 return;
             }
-            window.socket.emit('submitFinalJeopardyAnswer', { team: currentPlayer.team, answer });
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting…';
+            try {
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const formData = new FormData();
+                formData.append('image', blob, 'answer.png');
+                formData.append('team', currentPlayer.team);
+
+                const res = await fetch('/api/final-jeopardy-answer-image', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || 'Upload failed.');
+                }
+                window.socket.emit('submitFinalJeopardyAnswer', { team: currentPlayer.team, answer: data.url });
+            } catch (err) {
+                errorEl.textContent = err.message || 'Failed to submit answer.';
+                errorEl.style.display = 'block';
+            } finally {
+                submitBtn.textContent = 'Submit Answer';
+                updateFinalAnswerSubmitState();
+            }
         }
 
         // Update game status

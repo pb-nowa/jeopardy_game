@@ -5,7 +5,9 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const cors = require('cors');
+const multer = require('multer');
 const { execSync } = require('child_process');
+const { createImageStore } = require('./lib/imageStore');
 
 // Render automatically sets RENDER_GIT_COMMIT to the deployed commit SHA — use that in
 // production so the running deploy can be identified without any manual version bump.
@@ -189,6 +191,52 @@ setInterval(cleanupOldData, 60000);
 // resetGame() below, which is careful to mutate in place rather than reassign
 // `gameState`, so this reference never goes stale).
 app.use('/api/games', require('./routes/games')({ gameState, broadcastGameState, hostPassword: HOST_PASSWORD }));
+
+// Players draw their Final Jeopardy answer on a canvas instead of typing it — this
+// endpoint just uploads the resulting PNG and hands back a URL; the actual "submit
+// this as our team's answer" step still goes through the existing submitFinalJeopardyAnswer
+// socket event (with the URL in place of typed text), so all of that event's phase/team
+// validation stays in one place. Deliberately unauthenticated, same trust level as every
+// other player-originated action in this app (buzzing, registering, wagering) — nothing
+// here requires the host password.
+const finalJeopardyImageStore = createImageStore();
+const uploadFinalJeopardyAnswerImage = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const isPng = file.mimetype === 'image/png';
+        cb(isPng ? null : new Error('Only PNG images are accepted.'), isPng);
+    }
+});
+
+app.post('/api/final-jeopardy-answer-image', (req, res) => {
+    uploadFinalJeopardyAnswerImage.single('image')(req, res, async (uploadErr) => {
+        if (uploadErr) {
+            return res.status(400).json({ error: uploadErr.message || 'Upload failed.' });
+        }
+        if (gameState.finalJeopardy.phase !== 'answering') {
+            return res.status(409).json({ error: 'Answers are not open right now.' });
+        }
+        const team = parseInt(req.body && req.body.team, 10);
+        if (!(team >= 1 && team <= 4)) {
+            return res.status(400).json({ error: 'Invalid team.' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image provided.' });
+        }
+
+        try {
+            const { url } = await finalJeopardyImageStore.uploadImage(req.file.buffer, {
+                mimetype: req.file.mimetype,
+                publicId: `final-jeopardy-answer-team-${team}`
+            });
+            res.json({ url });
+        } catch (err) {
+            console.error('Final Jeopardy answer image upload failed:', err);
+            res.status(500).json({ error: 'Upload failed.' });
+        }
+    });
+});
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {
@@ -689,10 +737,13 @@ io.on('connection', (socket) => {
         }
 
         const team = parseInt(data && data.team, 10);
-        const answer = String((data && data.answer) || '').trim().slice(0, 200);
+        // "answer" is a URL to the team's drawn answer image (uploaded separately via
+        // /api/final-jeopardy-answer-image), not typed text — capped generously above
+        // any real image store URL's length as a sanity bound, not a meaningful limit.
+        const answer = String((data && data.answer) || '').trim().slice(0, 500);
 
         if (!(team >= 1 && team <= 4) || !answer) {
-            socket.emit('finalJeopardySubmitError', 'Please enter an answer.');
+            socket.emit('finalJeopardySubmitError', 'Please draw an answer first.');
             return;
         }
 
