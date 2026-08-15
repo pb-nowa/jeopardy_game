@@ -427,6 +427,21 @@
 
         const VALUE_MULTIPLIER = { '1': 100, '2': 200, '3': 300 };
 
+        // Hint/answer text and the Final Jeopardy category come back from the API
+        // already HTML-escaped (see escapeHtml in lib/csvToGameData.js — they're
+        // rendered via innerHTML elsewhere, e.g. the game board). A plain <textarea>/
+        // <input>'s .value is literal text, not parsed HTML, so setting it straight
+        // from the stored value would show the raw entities (e.g. "Kara&#39;s") instead
+        // of the real characters — and if a save round-trips that literal text back
+        // through the server's escapeHtml() untouched, it gets escaped a second time,
+        // corrupting it permanently. Decoding once here, on load, keeps the edit boxes
+        // showing (and re-submitting) genuine plain text.
+        function decodeHtmlEntities(str) {
+            const el = document.createElement('textarea');
+            el.innerHTML = str || '';
+            return el.value;
+        }
+
         // Shared editor for both regular questions and Final Jeopardy. `category`/
         // `difficulty` are omitted when roundValue==='final'. `category` is always the
         // exact string returned by GET /api/games/:id — never retyped or trimmed, since
@@ -445,13 +460,13 @@
 
             const hintArea = document.createElement('textarea');
             hintArea.className = 'hint-textarea';
-            hintArea.value = question.hint || '';
+            hintArea.value = decodeHtmlEntities(question.hint || '');
             hintArea.placeholder = '(blank = image only, no hint text)';
             cell.appendChild(hintArea);
 
             const answerArea = document.createElement('textarea');
             answerArea.className = 'hint-textarea';
-            answerArea.value = question.answer || '';
+            answerArea.value = decodeHtmlEntities(question.answer || '');
             answerArea.placeholder = 'Answer (e.g. What is...?)';
             cell.appendChild(answerArea);
 
@@ -704,7 +719,7 @@
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'category-name-input';
-            input.value = gameData.finalJeopardy.category;
+            input.value = decodeHtmlEntities(gameData.finalJeopardy.category);
             wrap.appendChild(input);
 
             const saveBtn = document.createElement('button');
@@ -717,7 +732,7 @@
 
             saveBtn.addEventListener('click', async () => {
                 const newName = input.value.trim();
-                if (!newName || newName === gameData.finalJeopardy.category) return;
+                if (!newName || newName === decodeHtmlEntities(gameData.finalJeopardy.category)) return;
 
                 if (!auth.isUnlocked()) {
                     status.textContent = 'Unlock with the host password first.';
